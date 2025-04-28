@@ -1,0 +1,46 @@
+# Ignore Rope project files
+.ropeproject/
+
+# Byte-code files
+*.pyc
+__pycache__/
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+*.dist-info/
+
+# MyPy cache
+.mypy_cache/
+
+# pytest cache
+.pytest_cache/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Editors and IDEs
+.idea/          # JetBrains IDEs (PyCharm, IntelliJ, etc.)
+.vscode/        # VS Code
+*.swp           # Vim swap files
+*~              # Backup files
+
+# OS generated files
+.DS_Store       # macOS
+Thumbs.db       # Windows
+
+# Logs and temporary files
+*.log
+temp/
+tmp/
+
+# Notebook-specific things (if applicable)
+.ipynb_checkpoints
+
+# Configuration files (if they contain sensitive info, use templates)
+# Example: ignore config.ini but keep config.ini.template
+# config.ini
