@@ -1,3 +1,5 @@
+# NOTE: THIS REPO IS UNDER ACTIVE DEVELOPMENT AND IS NOT YET READY FOR USE. IT DOES NOT YET WORK! YMMV :)
+
 # A Picture Is Worth 1000 Words: Visual Token Diffusion Language Models
 
 > *"The atoms of language, made visible through pixels, dancing to the tune of diffusion."*
