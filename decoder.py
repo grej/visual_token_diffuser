@@ -140,7 +140,7 @@ class LearnableDecoder(nn.Module):
         self.conv1 = nn.Conv2d(num_colors, 32, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
         
-        # Calculate the flattened size after convolutions
+        # Calculate the flattened size after convolutions (no pooling for 5x5)
         conv_output_size = 64 * grid_size * grid_size
         
         # Dense layers
@@ -173,11 +173,9 @@ class LearnableDecoder(nn.Module):
         x = patterns.permute(0, 3, 1, 2)
         # Shape: [batch_size, num_colors, grid_size, grid_size]
         
-        # Apply CNN layers
+        # Apply CNN layers (no pooling for small 5x5 grids)
         x = F.relu(self.conv1(x))
-        x = F.max_pool2d(x, 2)
         x = F.relu(self.conv2(x))
-        x = F.max_pool2d(x, 2)
         
         # Flatten
         x = x.view(batch_size, -1)

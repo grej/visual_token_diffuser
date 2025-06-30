@@ -174,6 +174,30 @@ class LearnableEncoder(nn.Module):
 
         return pattern_probs
 
+    def forward_logits(self, token_ids: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass of the encoder returning logits (before softmax).
+        
+        Args:
+            token_ids: Tensor of token IDs, shape [batch_size]
+            
+        Returns:
+            Tensor of visual pattern logits, shape [batch_size, grid_size, grid_size, num_colors]
+        """
+        # Get token embeddings
+        embeddings = self.token_embedding(token_ids)  # [batch_size, embedding_dim]
+        
+        # Process through dense layers
+        x = F.relu(self.fc1(embeddings))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        
+        # Reshape to [batch_size, grid_size, grid_size, num_colors]
+        batch_size = token_ids.shape[0]
+        logits = x.view(batch_size, self.grid_size, self.grid_size, self.num_colors)
+        
+        return logits
+
     def sample_patterns(self, token_ids: torch.Tensor) -> torch.Tensor:
         """
         Sample discrete patterns from the encoder outputs.

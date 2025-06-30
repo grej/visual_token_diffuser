@@ -1,0 +1,22 @@
+name: visual-token-diffuser-gpu
+channels:
+  - conda-forge
+  - defaults
+  - pytorch
+  - nvidia
+dependencies:
+  - python=3.11
+  - pytorch=2.6.0
+  - torchvision
+  - cudatoolkit=11.8
+  - numpy
+  - matplotlib
+  - tqdm
+  - scikit-learn
+  - pandas
+  - jupyter
+  - ipykernel
+  - pytest
+  - pip
+  - pip:
+      - tensorboard

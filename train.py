@@ -8,6 +8,7 @@ Supports different training stages: 'reconstruction' (autoencoder) and 'diffusio
 import argparse
 import numpy as np
 import torch
+import torch.nn.functional as F
 import torch.optim as optim
 import matplotlib.pyplot as plt
 from typing import List, Dict, Tuple, Optional
