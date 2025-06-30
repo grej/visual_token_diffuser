@@ -35,6 +35,7 @@ Thumbs.db       # Windows
 
 # Logs and temporary files
 *.log
+digest.txt
 temp/
 tmp/
 
