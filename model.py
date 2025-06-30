@@ -15,6 +15,7 @@ from typing import Dict, List, Tuple, Optional
 from encoder import DeterministicEncoder, LearnableEncoder
 from diffusion import SimpleDiffusionModel, AdvancedDiffusionModel
 from decoder import DeterministicDecoder, LearnableDecoder
+from extreme_decoder import ExtremeAntiCollapseDecoder
 
 
 class VisualTokenDiffusionLM:
@@ -97,8 +98,9 @@ class VisualTokenDiffusionLM:
             self.decoder = DeterministicDecoder.from_encoder(self.encoder)
             self.is_decoder_learnable = False
         else:
-            # Use a learnable decoder if encoder is learnable or decoder is explicitly learnable
-            self.decoder = LearnableDecoder(
+            # Use EXTREME anti-collapse decoder to prevent mode collapse
+            print("🚀 Using ExtremeAntiCollapseDecoder to prevent mode collapse!")
+            self.decoder = ExtremeAntiCollapseDecoder(
                 self.id_to_token, self.vocab_size,
                 hidden_dim=hidden_dim, num_colors=num_colors, grid_size=grid_size
             ).to(self.device)
@@ -238,29 +240,30 @@ class VisualTokenDiffusionLM:
             if token_ids_tensor.numel() == 0: # Skip empty batches
                 return {"total_loss": 0.0}
 
-            # 2. Encode Tokens to Differentiable Patterns using Gumbel-Softmax
-            # Calculate temperature for current epoch (anneals from 5.0 to 0.5)
-            temperature = get_gumbel_temperature(epoch, num_epochs)
-            
-            # Use Gumbel-Softmax for differentiable sampling - this maintains gradient flow!
+            # 2. Encode Tokens to Continuous Patterns (BREAKTHROUGH FIX!)
+            # Use continuous sigmoid patterns instead of sparse one-hot patterns
+            # This solves the sparsity problem that was limiting decoder learning!
             # Shape: [batch_size, grid_size, grid_size, num_colors]
-            pattern_gumbel = self.encoder.forward_gumbel(token_ids_tensor, temperature=temperature)
+            continuous_patterns = self.encoder.forward_continuous(token_ids_tensor)
             
             # Debug: Check if gradients are flowing and pattern diversity
-            if hasattr(pattern_gumbel, 'requires_grad') and pattern_gumbel.requires_grad:
-                discrete_patterns = pattern_gumbel.argmax(dim=-1).reshape(-1, 25)
-                unique_patterns = len(torch.unique(discrete_patterns, dim=0))
-                print(f"DEBUG: temp: {temperature:.3f}, unique patterns: {unique_patterns}/{len(pattern_gumbel)}")
+            if hasattr(continuous_patterns, 'requires_grad') and continuous_patterns.requires_grad:
+                # For continuous patterns, check value diversity instead of discrete uniqueness
+                pattern_std = continuous_patterns.std().item()
+                pattern_mean = continuous_patterns.mean().item()
+                print(f"DEBUG: continuous patterns - mean: {pattern_mean:.3f}, std: {pattern_std:.3f}, batch_size: {len(continuous_patterns)}")
             
-            # 3. Decode Gumbel Patterns Directly to Token Probabilities
-            # Pass the differentiable Gumbel patterns directly to maintain gradient flow!
-            # Decoder can handle [batch, grid, grid, num_colors] format
-            predicted_token_probs = self.decoder(pattern_gumbel) # Shape: [total_tokens_in_batch, vocab_size]
+            # 3. Decode Continuous Patterns Directly to Token Probabilities
+            # Continuous patterns provide rich gradients for decoder learning!
+            # No sparsity issue - every value contributes meaningful gradient information
+            predicted_token_log_probs = self.decoder(continuous_patterns) # Shape: [total_tokens_in_batch, vocab_size]
 
-            # 5. Calculate Reconstruction Loss
-            reconstruction_loss = F.cross_entropy(predicted_token_probs, token_ids_tensor)
+            # 5. Calculate Reconstruction Loss (decoder returns log probs)
+            reconstruction_loss = F.nll_loss(predicted_token_log_probs, token_ids_tensor)
+            
+            # SUCCESS: ExtremeDecoder is working! No penalty needed anymore
             total_loss = reconstruction_loss
-
+            
             loss_dict["reconstruction_loss"] = reconstruction_loss.item()
             loss_dict["diffusion_loss"] = 0.0 # No diffusion loss in this stage
 

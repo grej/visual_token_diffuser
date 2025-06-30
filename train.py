@@ -94,6 +94,83 @@ def get_temperature(epoch: int, num_epochs: int, start_temp: float = 5.0, end_te
     return start_temp * (end_temp / start_temp) ** progress
 
 
+def analyze_pattern_utilization(model: VisualTokenDiffusionLM, samples: List[str], max_samples: int = 100) -> Dict[str, float]:
+    """
+    Analyze how efficiently the model is using the available pattern space.
+    
+    Args:
+        model: The Visual Token Diffusion LM
+        samples: Text samples to analyze
+        max_samples: Maximum number of samples to analyze (for performance)
+        
+    Returns:
+        Dictionary with utilization statistics
+    """
+    if not model.is_encoder_learnable:
+        return {"error": "Pattern utilization analysis only works with learnable encoders"}
+    
+    # Sample a subset for analysis
+    analysis_samples = samples[:max_samples] if len(samples) > max_samples else samples
+    
+    # Collect all tokens from samples
+    all_tokens = []
+    for sample in analysis_samples:
+        words = sample.lower().split()
+        for word in words:
+            if word in model.token_to_id:
+                all_tokens.append(model.token_to_id[word])
+    
+    if not all_tokens:
+        return {"error": "No valid tokens found in samples"}
+    
+    # Get unique tokens and their patterns
+    unique_tokens = list(set(all_tokens))
+    token_ids_tensor = torch.tensor(unique_tokens, dtype=torch.long).to(model.device)
+    
+    # Get patterns (using current encoder state)
+    model.encoder.eval()
+    with torch.no_grad():
+        if hasattr(model.encoder, 'forward_continuous'):
+            # Use continuous patterns for analysis
+            patterns = model.encoder.forward_continuous(token_ids_tensor)
+            # For continuous patterns, we need a different approach to measure uniqueness
+            # Quantize continuous values to discrete levels for uniqueness analysis
+            discrete_patterns = torch.round(patterns * 10).long().argmax(dim=-1)  # Quantize to 10 levels
+        elif hasattr(model.encoder, 'forward_gumbel'):
+            # Use low temperature for more discrete patterns in analysis
+            patterns = model.encoder.forward_gumbel(token_ids_tensor, temperature=0.1)
+            # Convert to discrete patterns for uniqueness analysis
+            discrete_patterns = patterns.argmax(dim=-1)  # Shape: [num_tokens, grid_size, grid_size]
+        else:
+            patterns = model.encoder(token_ids_tensor)
+            discrete_patterns = patterns.argmax(dim=-1) if patterns.dim() == 4 else patterns
+    
+    # Flatten patterns for uniqueness analysis
+    pattern_flat = discrete_patterns.view(len(unique_tokens), -1)  # [num_tokens, grid_size*grid_size]
+    
+    # Count unique patterns
+    unique_patterns = torch.unique(pattern_flat, dim=0)
+    num_unique_patterns = len(unique_patterns)
+    num_tokens_analyzed = len(unique_tokens)
+    
+    # Calculate theoretical capacity
+    theoretical_max = model.num_colors ** (model.grid_size ** 2)
+    
+    # Calculate statistics
+    pattern_diversity = num_unique_patterns / num_tokens_analyzed  # How diverse are the patterns?
+    space_utilization = num_unique_patterns / min(theoretical_max, 1000000)  # Avoid overflow for huge spaces
+    
+    return {
+        "tokens_analyzed": num_tokens_analyzed,
+        "unique_patterns": num_unique_patterns,
+        "pattern_diversity": pattern_diversity,  # 1.0 = all tokens have unique patterns
+        "theoretical_max_patterns": theoretical_max,
+        "space_utilization": space_utilization,
+        "grid_size": model.grid_size,
+        "num_colors": model.num_colors
+    }
+
+
 def create_batches(samples: List[str], batch_size: int) -> List[List[str]]:
     """
     Create batches from text samples. Handles potential empty list.
@@ -217,7 +294,21 @@ def train(model: VisualTokenDiffusionLM,
     os.makedirs(stage_save_dir, exist_ok=True)
     print(f"Checkpoints and logs for this stage will be saved in: {stage_save_dir}")
 
-    # --- 4. Training Loop ---
+    # --- 4. Initial Pattern Utilization Analysis ---
+    if training_stage == 'reconstruction' and model.is_encoder_learnable:
+        print("\n--- Initial Pattern Utilization Analysis ---")
+        initial_stats = analyze_pattern_utilization(model, train_samples)
+        if "error" not in initial_stats:
+            print(f"Grid size: {initial_stats.get('grid_size', 0)}x{initial_stats.get('grid_size', 0)}, Colors: {initial_stats.get('num_colors', 0)}")
+            print(f"Theoretical max patterns: {initial_stats.get('theoretical_max_patterns', 0):,}")
+            print(f"Initial pattern diversity: {initial_stats.get('pattern_diversity', 0):.2%}")
+            print(f"Unique patterns: {initial_stats.get('unique_patterns', 0)}/{initial_stats.get('tokens_analyzed', 0)}")
+            print(f"Space utilization: {initial_stats.get('space_utilization', 0):.6%}")
+        else:
+            print(f"Pattern analysis error: {initial_stats['error']}")
+        print("-" * 50)
+
+    # --- 5. Training Loop ---
     all_losses = []
     best_val_loss = float('inf') # Simple validation metric
 
@@ -269,19 +360,27 @@ def train(model: VisualTokenDiffusionLM,
                     token_ids_tensor = model._get_token_ids_from_text_batch(val_batch)
                     if token_ids_tensor.numel() == 0: continue
 
-                    # Use Gumbel-Softmax for validation consistency with training
-                    # Fixed temperature for deterministic validation
-                    pattern_gumbel = model.encoder.forward_gumbel(token_ids_tensor, temperature=1.0)
-                    predicted_token_probs = model.decoder(pattern_gumbel)
-                    val_loss = F.cross_entropy(predicted_token_probs, token_ids_tensor, reduction='sum')
+                    # Use continuous patterns for validation consistency with training
+                    # Continuous patterns provide consistent, deterministic validation
+                    continuous_patterns = model.encoder.forward_continuous(token_ids_tensor)
+                    predicted_token_log_probs = model.decoder(continuous_patterns)
+                    val_loss = F.nll_loss(predicted_token_log_probs, token_ids_tensor, reduction='sum')
                     total_val_loss += val_loss.item()
                     num_val_tokens += token_ids_tensor.numel()
 
-                    # Calculate reconstruction accuracy
-                    predicted_token_ids = torch.argmax(predicted_token_probs, dim=-1)
+                    # Calculate reconstruction accuracy (argmax works on log probs too)
+                    predicted_token_ids = torch.argmax(predicted_token_log_probs, dim=-1)
                     correct_reconstructions += (predicted_token_ids == token_ids_tensor).sum().item()
                     
-                    # DEBUG: First epoch detailed analysis
+                    # Quick diagnostic - always check the most common prediction
+                    from collections import Counter
+                    pred_counter = Counter(predicted_token_ids.tolist())
+                    most_common = pred_counter.most_common(3)
+                    print(f"  Most predicted tokens: {most_common}")
+                    if len(most_common) == 1:
+                        print("  🚨 WARNING: Decoder only predicting ONE token!")
+                    
+                    # DEBUG: First epoch detailed analysis and decoder diagnostic
                     if epoch == 0 and len(val_batches) == 1:  # First validation batch of first epoch
                         print(f"\n=== DEBUGGING RECONSTRUCTION ACCURACY ===")
                         print(f"Sample predictions vs targets (first 15):")
@@ -306,6 +405,49 @@ def train(model: VisualTokenDiffusionLM,
                         unique_targets = torch.unique(token_ids_tensor)
                         print(f"Unique target token IDs: {unique_targets.tolist()}")
                         print(f"Target distribution: {len(unique_targets)} unique out of {len(token_ids_tensor)} tokens")
+                        
+                        # DECODER DIAGNOSTIC - Check the 4.55% mystery!
+                        print(f"\n=== DECODER DIAGNOSTIC - SOLVING 4.55% MYSTERY ===")
+                        
+                        # Check what the most predicted token is
+                        from collections import Counter
+                        pred_counter = Counter(predicted_token_ids.tolist())
+                        most_common_pred = pred_counter.most_common(1)[0] if pred_counter else (None, 0)
+                        print(f"Most predicted token: ID {most_common_pred[0]} ({most_common_pred[1]}/{len(predicted_token_ids)} times)")
+                        
+                        if most_common_pred[0] is not None:
+                            token_word = model.id_to_token.get(most_common_pred[0], 'UNKNOWN')
+                            print(f"Token ID {most_common_pred[0]} is: '{token_word}'")
+                        
+                        # Count token frequencies in ALL validation samples
+                        all_val_tokens = []
+                        for sample in val_samples:
+                            words = sample.lower().split()
+                            for word in words:
+                                if word in model.token_to_id:
+                                    token_id = model.token_to_id[word]
+                                    all_val_tokens.append(token_id)
+                        
+                        if all_val_tokens:
+                            token_counts = Counter(all_val_tokens)
+                            total_tokens = len(all_val_tokens)
+                            
+                            # Check if the most predicted token's frequency = 4.55%
+                            if most_common_pred[0] is not None:
+                                token_freq = token_counts.get(most_common_pred[0], 0) / total_tokens
+                                print(f"Token {most_common_pred[0]} frequency in validation: {token_freq:.4f} ({token_counts.get(most_common_pred[0], 0)}/{total_tokens})")
+                                print(f"Expected accuracy if always predicting token {most_common_pred[0]}: {token_freq*100:.2f}%")
+                                
+                                if abs(token_freq - 0.0455) < 0.001:
+                                    print("🚨 SMOKING GUN! Decoder is stuck predicting one token!")
+                            
+                            # Show top 5 most common tokens in validation
+                            print("\nTop 5 most common tokens in validation:")
+                            for token_id, count in token_counts.most_common(5):
+                                freq = count / total_tokens
+                                token = model.id_to_token.get(token_id, 'UNKNOWN')
+                                print(f"  Token {token_id} ('{token}'): {freq*100:.2f}% ({count}/{total_tokens})")
+                        
                         print("="*50)
 
                 elif training_stage == 'diffusion':
@@ -342,6 +484,17 @@ def train(model: VisualTokenDiffusionLM,
             if training_stage == 'reconstruction' and num_val_tokens > 0:
                  recon_accuracy = correct_reconstructions / num_val_tokens
                  print(f"  Reconstruction Accuracy: {recon_accuracy:.4f}")
+                 
+                 # Pattern utilization analysis after each epoch
+                 if model.is_encoder_learnable:
+                     pattern_stats = analyze_pattern_utilization(model, val_samples)
+                     if "error" not in pattern_stats:
+                         print(f"  Pattern Diversity: {pattern_stats.get('pattern_diversity', 0):.2%}")
+                         print(f"  Unique Patterns: {pattern_stats.get('unique_patterns', 0)}/{pattern_stats.get('tokens_analyzed', 0)}")
+                         if pattern_stats.get('space_utilization', 0) < 0.01:  # Very small utilization
+                             print(f"  Space Utilization: {pattern_stats.get('space_utilization', 0):.8%}")
+                         else:
+                             print(f"  Space Utilization: {pattern_stats.get('space_utilization', 0):.6%}")
 
         # --- 6. Save Checkpoint (Best and Last) ---
         # Save based on validation loss improvement
@@ -416,7 +569,8 @@ def main():
                         choices=["deterministic", "learnable"], help="Type of decoder.")
     parser.add_argument("--hidden_dim", type=int, default=256, help="Hidden dimension size for learnable components.")
     parser.add_argument("--diffusion_timesteps", type=int, default=50, help="Number of timesteps for diffusion.")
-    # Grid size and num colors could be args too, but keeping fixed for simplicity now
+    parser.add_argument("--grid_size", type=int, default=5, help="Size of the square grid for visual patterns (5x5 default, 7x7 recommended for large vocab).")
+    parser.add_argument("--num_colors", type=int, default=3, help="Number of colors in visual patterns (3 default, 5 recommended for large vocab).")
 
     # Training Control
     parser.add_argument("--stage", type=str, default="diffusion", required=True,
@@ -479,6 +633,8 @@ def main():
         decoder_type=args.decoder_type,
         hidden_dim=args.hidden_dim,
         diffusion_timesteps=args.diffusion_timesteps,
+        num_colors=args.num_colors,
+        grid_size=args.grid_size,
         device=device,
         initial_training_stage=args.stage # Set the stage here
     )

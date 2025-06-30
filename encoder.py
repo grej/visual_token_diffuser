@@ -138,14 +138,16 @@ class LearnableEncoder(nn.Module):
         self._init_weights()
 
     def _init_weights(self):
-        """Initialize network weights"""
+        """Initialize network weights with proper scaling for pattern diversity"""
         nn.init.normal_(self.token_embedding.weight, mean=0, std=0.02)
         nn.init.xavier_uniform_(self.fc1.weight)
         nn.init.xavier_uniform_(self.fc2.weight)
-        nn.init.xavier_uniform_(self.fc3.weight)
+        # CRITICAL FIX: Larger initialization for final layer to break sigmoid(0)=0.5 collapse
+        nn.init.normal_(self.fc3.weight, mean=0, std=1.0)  # Much larger std!
         nn.init.zeros_(self.fc1.bias)
         nn.init.zeros_(self.fc2.bias)
-        nn.init.zeros_(self.fc3.bias)
+        # Also randomize the final bias to break symmetry
+        nn.init.uniform_(self.fc3.bias, -0.5, 0.5)  # Break pattern symmetry
 
     def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
         """
@@ -212,6 +214,33 @@ class LearnableEncoder(nn.Module):
         logits = self.forward_logits(token_ids)
         # hard=True gives one-hot-like outputs but maintains gradients
         return F.gumbel_softmax(logits, tau=temperature, hard=True, dim=-1)
+
+    def forward_continuous(self, token_ids: torch.Tensor) -> torch.Tensor:
+        """
+        Generate continuous patterns instead of discrete one-hot patterns.
+        This solves the sparse one-hot problem by using dense continuous values.
+        
+        Args:
+            token_ids: Tensor of token IDs, shape [batch_size]
+            
+        Returns:
+            Tensor of continuous patterns, shape [batch_size, grid_size, grid_size, num_colors]
+            Values are in [0, 1] range using sigmoid activation
+        """
+        # Get token embeddings
+        embeddings = self.token_embedding(token_ids)  # [batch_size, embedding_dim]
+        
+        # Process through dense layers
+        x = F.relu(self.fc1(embeddings))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        
+        # Reshape to [batch_size, grid_size, grid_size, num_colors]
+        batch_size = token_ids.shape[0]
+        x = x.view(batch_size, self.grid_size, self.grid_size, self.num_colors)
+        
+        # Use sigmoid for continuous values [0, 1] - no sparsity!
+        return torch.sigmoid(x)
 
     def sample_patterns(self, token_ids: torch.Tensor) -> torch.Tensor:
         """

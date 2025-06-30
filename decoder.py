@@ -116,6 +116,7 @@ class DeterministicDecoder:
 class LearnableDecoder(nn.Module):
     """
     Neural network-based decoder that learns to map visual patterns to token probabilities.
+    Uses forced input dependence to prevent mode collapse.
     """
     
     def __init__(self, id_to_token: Dict[int, str], vocab_size: int, 
@@ -136,60 +137,89 @@ class LearnableDecoder(nn.Module):
         self.num_colors = num_colors
         self.grid_size = grid_size
         
-        # CNN layers to process the visual patterns
-        self.conv1 = nn.Conv2d(num_colors, 32, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        # Spatial processing path - preserves 2D structure
+        self.conv1 = nn.Conv2d(num_colors, 64, kernel_size=1)  # 1x1 conv preserves spatial info
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
+        self.global_pool = nn.AdaptiveAvgPool2d(1)
         
-        # Calculate the flattened size (bypassing CNN)
+        # MLP path
+        self.fc1 = nn.Linear(256, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, vocab_size)
+        
+        # Direct path - forces input dependence
         flattened_size = grid_size * grid_size * num_colors
+        self.direct_path = nn.Linear(flattened_size, vocab_size)
         
-        # Dense layers
-        self.fc1 = nn.Linear(flattened_size, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        self.fc3 = nn.Linear(hidden_dim, vocab_size)
+        # Pattern hash embedding - creates discrete codes from continuous patterns
+        self.pattern_hash = nn.Linear(flattened_size, hidden_dim)
+        self.hash_to_vocab = nn.Linear(hidden_dim, vocab_size)
         
-        # Dropout for regularization
-        self.dropout = nn.Dropout(0.2)
+        # Initialize with uniform prior (not zero!)
+        import numpy as np
+        self.fc2.bias.data.fill_(-np.log(vocab_size))
+        self.direct_path.bias.data.fill_(-np.log(vocab_size))
+        self.hash_to_vocab.bias.data.fill_(-np.log(vocab_size))
+        
+        print(f"NEW Decoder: Using forced input dependence architecture")
+        print(f"Vocab size: {vocab_size}, Grid: {grid_size}x{grid_size}, Colors: {num_colors}")
+        print(f"Initialized all output biases to uniform prior: {-np.log(vocab_size):.3f}")
     
     def forward(self, patterns: torch.Tensor) -> torch.Tensor:
         """
-        Forward pass of the decoder.
+        Forward pass with forced input dependence to prevent mode collapse.
         
         Args:
             patterns: Visual patterns, shape [batch_size, grid_size, grid_size]
                      or [batch_size, grid_size, grid_size, num_colors] if one-hot encoded
+                     or continuous patterns [batch_size, grid_size, grid_size, num_colors] with sigmoid values
         
         Returns:
-            Token probabilities, shape [batch_size, vocab_size]
+            Token log probabilities, shape [batch_size, vocab_size]
         """
         batch_size = patterns.shape[0]
         
-        # DEBUG: Check decoder input
-        if hasattr(patterns, 'requires_grad') and patterns.requires_grad:
-            print(f"DEBUG Decoder: input shape={patterns.shape}, requires_grad={patterns.requires_grad}")
-            print(f"DEBUG Decoder: input sample (first 5 values)={patterns[0].flatten()[:5].detach()}")
-        
-        # Convert to one-hot encoding if not already
+        # Handle both continuous and discrete patterns
         if patterns.dim() == 3:
+            # Discrete patterns - convert to one-hot encoding
             patterns = F.one_hot(patterns.long(), num_classes=self.num_colors).float()
-            # Shape: [batch_size, grid_size, grid_size, num_colors]
+        elif patterns.dim() == 4:
+            # Already in the right format (continuous or one-hot)
+            pass
         
-        # BYPASS CNN - directly flatten the one-hot patterns
-        # CNN doesn't work well with sparse one-hot patterns  
-        x = patterns.view(batch_size, -1)
-        # Shape: [batch_size, grid_size*grid_size*num_colors]
+        # Path 1: Spatial CNN processing
+        # Reshape for conv: [batch, channels, height, width]
+        conv_input = patterns.permute(0, 3, 1, 2)  # [batch, num_colors, grid_size, grid_size]
         
-        # Apply dense layers
-        x = F.relu(self.fc1(x))
-        x = self.dropout(x)
-        x = F.relu(self.fc2(x))
-        x = self.dropout(x)
-        x = self.fc3(x)
+        x = F.relu(self.conv1(conv_input))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
         
-        # Apply softmax to get probabilities
-        token_probs = F.softmax(x, dim=-1)
+        # Global pooling to get feature vector
+        spatial_features = self.global_pool(x).squeeze(-1).squeeze(-1)  # [batch, 256]
         
-        return token_probs
+        # MLP on spatial features
+        mlp_out = F.relu(self.fc1(spatial_features))
+        spatial_logits = self.fc2(mlp_out)
+        
+        # Path 2: Direct linear path (forces input dependence)
+        flat_patterns = patterns.view(batch_size, -1)  # [batch, grid*grid*colors]
+        direct_logits = self.direct_path(flat_patterns)
+        
+        # Path 3: Pattern hash embedding (discretizes continuous patterns)
+        hash_features = torch.tanh(self.pattern_hash(flat_patterns))  # Bounded activation
+        hash_logits = self.hash_to_vocab(hash_features)
+        
+        # Combine all paths - weighted ensemble
+        # This FORCES the model to use input information from multiple perspectives
+        combined_logits = (
+            0.5 * spatial_logits +     # CNN spatial features
+            0.3 * direct_logits +      # Direct input dependence
+            0.2 * hash_logits          # Discrete pattern codes
+        )
+        
+        # Return log probabilities for stable training
+        return F.log_softmax(combined_logits, dim=-1)
     
     def decode(self, patterns: torch.Tensor, temperature: float = 1.0, 
                greedy: bool = False) -> List[str]:
