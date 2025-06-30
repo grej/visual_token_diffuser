@@ -246,15 +246,16 @@ class VisualTokenDiffusionLM:
             # Shape: [batch_size, grid_size, grid_size, num_colors]
             pattern_gumbel = self.encoder.forward_gumbel(token_ids_tensor, temperature=temperature)
             
-            # Convert one-hot patterns to indices for decoder input
-            # Shape: [batch_size, grid_size, grid_size]
-            sampled_patterns = torch.argmax(pattern_gumbel, dim=-1)
-
-
-            # 4. Decode Sampled Patterns to Token Probabilities
-            # Decoder takes [batch, grid, grid] or [batch, grid, grid, num_colors]
-            # The current decoder handles [batch, grid, grid] by applying one-hot itself.
-            predicted_token_probs = self.decoder(sampled_patterns) # Shape: [total_tokens_in_batch, vocab_size]
+            # Debug: Check if gradients are flowing and pattern diversity
+            if hasattr(pattern_gumbel, 'requires_grad') and pattern_gumbel.requires_grad:
+                discrete_patterns = pattern_gumbel.argmax(dim=-1).reshape(-1, 25)
+                unique_patterns = len(torch.unique(discrete_patterns, dim=0))
+                print(f"DEBUG: temp: {temperature:.3f}, unique patterns: {unique_patterns}/{len(pattern_gumbel)}")
+            
+            # 3. Decode Gumbel Patterns Directly to Token Probabilities
+            # Pass the differentiable Gumbel patterns directly to maintain gradient flow!
+            # Decoder can handle [batch, grid, grid, num_colors] format
+            predicted_token_probs = self.decoder(pattern_gumbel) # Shape: [total_tokens_in_batch, vocab_size]
 
             # 5. Calculate Reconstruction Loss
             reconstruction_loss = F.cross_entropy(predicted_token_probs, token_ids_tensor)

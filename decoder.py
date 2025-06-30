@@ -140,11 +140,11 @@ class LearnableDecoder(nn.Module):
         self.conv1 = nn.Conv2d(num_colors, 32, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
         
-        # Calculate the flattened size after convolutions (no pooling for 5x5)
-        conv_output_size = 64 * grid_size * grid_size
+        # Calculate the flattened size (bypassing CNN)
+        flattened_size = grid_size * grid_size * num_colors
         
         # Dense layers
-        self.fc1 = nn.Linear(conv_output_size, hidden_dim)
+        self.fc1 = nn.Linear(flattened_size, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
         self.fc3 = nn.Linear(hidden_dim, vocab_size)
         
@@ -164,21 +164,20 @@ class LearnableDecoder(nn.Module):
         """
         batch_size = patterns.shape[0]
         
+        # DEBUG: Check decoder input
+        if hasattr(patterns, 'requires_grad') and patterns.requires_grad:
+            print(f"DEBUG Decoder: input shape={patterns.shape}, requires_grad={patterns.requires_grad}")
+            print(f"DEBUG Decoder: input sample (first 5 values)={patterns[0].flatten()[:5].detach()}")
+        
         # Convert to one-hot encoding if not already
         if patterns.dim() == 3:
             patterns = F.one_hot(patterns.long(), num_classes=self.num_colors).float()
             # Shape: [batch_size, grid_size, grid_size, num_colors]
         
-        # Rearrange dimensions for CNN
-        x = patterns.permute(0, 3, 1, 2)
-        # Shape: [batch_size, num_colors, grid_size, grid_size]
-        
-        # Apply CNN layers (no pooling for small 5x5 grids)
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        
-        # Flatten
-        x = x.view(batch_size, -1)
+        # BYPASS CNN - directly flatten the one-hot patterns
+        # CNN doesn't work well with sparse one-hot patterns  
+        x = patterns.view(batch_size, -1)
+        # Shape: [batch_size, grid_size*grid_size*num_colors]
         
         # Apply dense layers
         x = F.relu(self.fc1(x))

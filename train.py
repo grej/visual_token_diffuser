@@ -269,13 +269,10 @@ def train(model: VisualTokenDiffusionLM,
                     token_ids_tensor = model._get_token_ids_from_text_batch(val_batch)
                     if token_ids_tensor.numel() == 0: continue
 
-                    pattern_probs = model.encoder(token_ids_tensor)
-                    # Use simple sampling for validation consistency with train_step (or argmax if preferred)
-                    sampled_patterns = torch.distributions.Categorical(probs=pattern_probs).sample()
-                    # Alternative: use argmax for deterministic validation
-                    # sampled_patterns = torch.argmax(pattern_probs, dim=-1)
-
-                    predicted_token_probs = model.decoder(sampled_patterns)
+                    # Use Gumbel-Softmax for validation consistency with training
+                    # Fixed temperature for deterministic validation
+                    pattern_gumbel = model.encoder.forward_gumbel(token_ids_tensor, temperature=1.0)
+                    predicted_token_probs = model.decoder(pattern_gumbel)
                     val_loss = F.cross_entropy(predicted_token_probs, token_ids_tensor, reduction='sum')
                     total_val_loss += val_loss.item()
                     num_val_tokens += token_ids_tensor.numel()
@@ -283,6 +280,33 @@ def train(model: VisualTokenDiffusionLM,
                     # Calculate reconstruction accuracy
                     predicted_token_ids = torch.argmax(predicted_token_probs, dim=-1)
                     correct_reconstructions += (predicted_token_ids == token_ids_tensor).sum().item()
+                    
+                    # DEBUG: First epoch detailed analysis
+                    if epoch == 0 and len(val_batches) == 1:  # First validation batch of first epoch
+                        print(f"\n=== DEBUGGING RECONSTRUCTION ACCURACY ===")
+                        print(f"Sample predictions vs targets (first 15):")
+                        print(f"Predicted tokens: {predicted_token_ids[:15].tolist()}")
+                        print(f"Target tokens:    {token_ids_tensor[:15].tolist()}")
+                        
+                        # Check if decoder is outputting the same token
+                        unique_predictions = torch.unique(predicted_token_ids)
+                        print(f"Unique predicted token IDs: {unique_predictions.tolist()}")
+                        print(f"Total unique predictions: {len(unique_predictions)} out of {len(predicted_token_ids)} tokens")
+                        
+                        # Which tokens are being predicted correctly?
+                        correct_mask = (predicted_token_ids == token_ids_tensor)
+                        correct_indices = torch.where(correct_mask)[0]
+                        if len(correct_indices) > 0:
+                            print(f"Correctly predicted token IDs: {token_ids_tensor[correct_indices].tolist()}")
+                            print(f"Number of correct predictions: {len(correct_indices)}")
+                        else:
+                            print("No correct predictions!")
+                        
+                        # Check target token distribution
+                        unique_targets = torch.unique(token_ids_tensor)
+                        print(f"Unique target token IDs: {unique_targets.tolist()}")
+                        print(f"Target distribution: {len(unique_targets)} unique out of {len(token_ids_tensor)} tokens")
+                        print("="*50)
 
                 elif training_stage == 'diffusion':
                     # Get target patterns
