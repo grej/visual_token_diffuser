@@ -198,6 +198,21 @@ class LearnableEncoder(nn.Module):
         
         return logits
 
+    def forward_gumbel(self, token_ids: torch.Tensor, temperature: float = 1.0) -> torch.Tensor:
+        """
+        Forward pass with Gumbel-Softmax for differentiable sampling.
+        
+        Args:
+            token_ids: Tensor of token IDs, shape [batch_size]
+            temperature: Gumbel softmax temperature (higher = more uniform)
+            
+        Returns:
+            Tensor of patterns, shape [batch_size, grid_size, grid_size, num_colors]
+        """
+        logits = self.forward_logits(token_ids)
+        # hard=True gives one-hot-like outputs but maintains gradients
+        return F.gumbel_softmax(logits, tau=temperature, hard=True, dim=-1)
+
     def sample_patterns(self, token_ids: torch.Tensor) -> torch.Tensor:
         """
         Sample discrete patterns from the encoder outputs.

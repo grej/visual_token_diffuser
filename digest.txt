@@ -1,0 +1,2985 @@
+Directory structure:
+└── visual_token_diffuser/
+    ├── README.md
+    ├── decoder.py
+    ├── diffusion.py
+    ├── encoder-dot-py-suggestions
+    ├── encoder.py
+    ├── environment-cpu.yml
+    ├── environment-gpu.yml
+    ├── environment.yml
+    ├── model.py
+    ├── requirements.txt
+    ├── sample_data.txt
+    ├── sample_val_data.txt
+    ├── train.py
+    ├── updates28apr.md
+    ├── utils.py
+    ├── checkpoints/
+    │   ├── diffusion/
+    │   │   ├── loss_history.json
+    │   │   ├── model_best.pt
+    │   │   ├── model_epoch_1.pt
+    │   │   ├── model_epoch_10.pt
+    │   │   ├── model_epoch_2.pt
+    │   │   ├── model_epoch_3.pt
+    │   │   ├── model_epoch_4.pt
+    │   │   ├── model_epoch_5.pt
+    │   │   ├── model_epoch_6.pt
+    │   │   ├── model_epoch_7.pt
+    │   │   ├── model_epoch_8.pt
+    │   │   └── model_epoch_9.pt
+    │   └── reconstruction/
+    │       ├── loss_history.json
+    │       ├── model_best.pt
+    │       ├── model_epoch_1.pt
+    │       ├── model_epoch_10.pt
+    │       ├── model_epoch_2.pt
+    │       ├── model_epoch_3.pt
+    │       ├── model_epoch_4.pt
+    │       ├── model_epoch_5.pt
+    │       ├── model_epoch_6.pt
+    │       ├── model_epoch_7.pt
+    │       ├── model_epoch_8.pt
+    │       └── model_epoch_9.pt
+    └── .claude/
+        └── settings.local.json
+
+================================================
+FILE: README.md
+================================================
+# NOTE: THIS REPO IS UNDER ACTIVE DEVELOPMENT AND IS NOT YET READY FOR USE. IT DOES NOT YET WORK! YMMV :)
+
+# A Picture Is Worth 1000 Words: Visual Token Diffusion Language Models
+
+> *"The atoms of language, made visible through pixels, dancing to the tune of diffusion."*
+
+## Introduction: Reimagining Language Representation
+
+This repository introduces a novel approach to language modeling that bridges the gap between textual and visual domains. Rather than processing language through the conventional lens of token IDs and embeddings, we explore an alternative paradigm: representing language tokens as visual patterns in a compact pixel space, and leveraging diffusion models to generate new text.
+
+**Core Idea**: Transform text tokens into visual patterns (5×5 pixel grids with 3 possible colors per pixel), apply diffusion models within this visual space, and decode the generated patterns back into text. This creates a fundamentally different architecture for language generation than traditional autoregressive models.
+
+By Greg Jennings
+
+## Why Visual Token Representations?
+
+Language models typically transform words into numeric token IDs, which are then mapped to high-dimensional vector embeddings. The core innovation here is to replace this abstraction with a visual representation:
+
+```
+"hello" → [3, 4, 5, 1, 2, 0, 2, 1, ...]  (Traditional embeddings)
+
+"hello" →  ⬜⬜🟦⬜⬜     (Visual token approach (notional only)
+           ⬜🟦⬜🟦⬜
+           🟦⬜⬜⬜🟦
+           ⬜🟦⬜🟦⬜
+           ⬜⬜🟦⬜⬜
+```
+
+### The Mathematics of Possibility
+
+The combinatorial space of a 5×5 grid with 3 possible colors per pixel is **3^25 = 847,288,609,443** - offering a vast representation space that dwarfs typical vocabulary sizes (50K-100K tokens). This richness creates the potential for:
+
+1. **Efficient Token Compression**: Complex semantic concepts could be encoded in single visual patterns
+2. **Emergent Semantic Structure**: Similar meanings could naturally map to visually similar patterns
+3. **Evolutionary Vocabulary**: As the model learns, it can colonize unused regions of the visual space for new concepts
+
+## Theoretical Foundations
+
+This approach draws inspiration from diverse fields:
+
+### From Cognitive Science
+
+The human brain excels at processing and remembering visual information. By leveraging a visual representation space, we may tap into the neural machinery that has evolved for spatial and visual processing, potentially offering advantages for certain types of linguistic structures.
+
+### From Diffusion Models
+
+Recent advances in diffusion models have shown remarkable results in generating high-quality images, audio, and even discrete data like text. By operating in a visual token space, we can apply these powerful generative techniques to language in a novel way.
+
+### From Information Theory
+
+The 5×5 grid with 3 colors provides an information-dense representation space. Each pattern can theoretically encode log₂(3^25) ≈ 39.6 bits of information, significantly more than typical word embeddings require for unique identification.
+
+## Implementation
+
+This repository contains a minimal, Karpathy-inspired implementation of Visual Token Diffusion Language Models. The code is designed to be clear, educational, and modular, rather than optimized for production performance.
+
+### Components
+
+1. **Encoder**: Maps text tokens to visual patterns (5×5 grids)
+   - `DeterministicEncoder`: Simple mapping from tokens to fixed patterns
+   - `LearnableEncoder`: Neural network that learns to map tokens to visual patterns
+
+2. **Diffusion Model**: Operates in the visual token space
+   - `SimpleDiffusionModel`: Basic discrete diffusion for visual patterns
+   - `AdvancedDiffusionModel`: Transformer-based diffusion with attention
+
+3. **Decoder**: Maps visual patterns back to text
+   - `DeterministicDecoder`: Maps patterns to tokens based on similarity
+   - `LearnableDecoder`: Neural network that learns to decode patterns
+
+4. **Utilities**: Visualization and data processing tools
+
+### Training Approach
+
+The model can be trained in three progressive stages:
+
+1. **Reconstruction**: Train the encoder-decoder to accurately reconstruct text through the visual space
+2. **Generation**: Train the diffusion model to generate plausible visual patterns
+3. **RL Fine-tuning**: Use reinforcement learning to ensure generated patterns remain decodable
+
+## Potential Applications and Advantages
+
+### 1. Novel Representation Learning
+
+This approach offers a fundamentally different way to represent and generate language, potentially capturing relationships that vector-based methods might miss.
+
+### 2. Efficiency in Token Usage
+
+The visual pattern space enables representing complex linguistic structures in compact forms, potentially leading to more efficient utilization of context windows.
+
+### 3. Non-Autoregressive Generation
+
+Unlike traditional language models that generate text one token at a time, diffusion models can generate all tokens in parallel, offering potential speed advantages.
+
+### 4. Evolutionary Token Learning
+
+The vast combinatorial space enables a model that can dynamically assign new visual patterns to represent novel concepts or word combinations, creating an adaptable, evolving vocabulary.
+
+### 5. Theoretical Insights
+
+This approach may provide new perspectives on the nature of language representation and generation, bridging insights from vision and language research.
+
+## Current Limitations and Future Directions
+
+### Limitations
+
+- The visual encoding introduces computational overhead compared to simple embedding lookups
+- Ensuring that generated visual patterns decode to valid language presents unique challenges
+- The approach may struggle with very long-range dependencies that autoregressive models handle well
+
+### Future Directions
+
+1. **Semantic Visual Encoding**: Develop encoding schemes where visual similarity corresponds to semantic similarity
+2. **Hierarchical Representations**: Create multi-scale visual patterns that capture both word and phrase-level meanings
+3. **Cross-modal Transfer**: Explore whether pre-training on actual images helps the model learn better visual token representations
+4. **Hybrid Approaches**: Combine visual token representations with traditional embeddings to leverage the strengths of both
+
+## Getting Started
+
+### Installation
+
+We use conda to manage dependencies. Clone the repository and create the conda environment:
+
+```bash
+# Clone the repository
+git clone https://github.com/gregjennings/visual-token-diffusion-lm.git
+cd visual-token-diffusion-lm
+
+# Create and activate conda environment
+conda env create -f environment.yml
+conda activate visual-token-diffusion
+```
+
+If you prefer pip, you can use:
+
+```bash
+pip install -r requirements.txt
+```
+
+### Training a Simple Model
+
+```bash
+python train.py --data text_data.txt --vocab_size 500 --encoder_type deterministic --diffusion_type simple
+```
+
+### Training an Advanced Model
+
+```bash
+python train.py --data text_data.txt --vocab_size 1000 --encoder_type learnable --diffusion_type advanced --decoder_type learnable
+```
+
+### Generating Text
+
+```bash
+python generate.py --checkpoint checkpoints/model_epoch_10.pt --prompt "The quick brown" --max_length 20
+```
+
+
+## Conclusion: Why This Matters
+
+This project represents a fundamental rethinking of how language can be represented and generated. By bringing together insights from computer vision, diffusion models, and language processing, it creates an architecture that challenges our conventional understanding of language modeling.
+
+In the spirit of Richard Feynman's approach to physics, we've stripped language modeling down to a visual essence and rebuilt it with diffusion mathematics. The potential payoff is significant: models that can represent language more efficiently, learn organically expanding vocabularies, and generate text through a fundamentally different process than today's autoregressive giants.
+
+Is this the future of language modeling? Perhaps not in its current form. But by exploring these alternative perspectives, we enhance our understanding of what's possible and potentially discover principles that advance the entire field.
+
+## References and Acknowledgments
+
+This work draws inspiration from:
+
+- Andrej Karpathy's nanoGPT and educational approaches to deep learning
+- Ho et al.'s seminal work on Denoising Diffusion Probabilistic Models
+- Austin et al.'s research on discrete diffusion in state-spaces
+- The growing body of research on multimodal representation learning
+
+## Citation
+
+If you find this work useful, please consider citing:
+
+```
+@misc{jennings2025picture,
+  title={A Picture Is Worth 1000 Words: Visual Token Diffusion Language Models},
+  author={Jennings, Greg},
+  year={2025},
+  howpublished={\url{https://github.com/grej/visual-token-diffuser}}
+}
+```
+
+## License
+
+This project is released under the MIT License.
+
+
+
+================================================
+FILE: decoder.py
+================================================
+"""
+Decoder module for the Visual Token Diffusion Language Model.
+Maps visual patterns (5x5 grids with 3 colors) back to text.
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import Dict, List, Tuple, Optional
+
+
+class DeterministicDecoder:
+    """
+    Simple deterministic decoder that maps visual patterns back to tokens
+    using the pre-defined patterns from the encoder.
+    """
+    
+    def __init__(self, pattern_to_token_id: Dict[str, int], id_to_token: Dict[int, str]):
+        """
+        Initialize the deterministic decoder.
+        
+        Args:
+            pattern_to_token_id: Dictionary mapping pattern strings to token IDs
+            id_to_token: Dictionary mapping token IDs to tokens
+        """
+        self.pattern_to_token_id = pattern_to_token_id
+        self.id_to_token = id_to_token
+    
+    def _pattern_to_string(self, pattern: np.ndarray) -> str:
+        """
+        Convert a pattern to a string for lookup.
+        
+        Args:
+            pattern: Visual pattern array
+        
+        Returns:
+            String representation of the pattern
+        """
+        # Flatten the pattern and convert to string
+        return ','.join(map(str, pattern.flatten()))
+    
+    def decode_single(self, pattern: np.ndarray) -> str:
+        """
+        Decode a single pattern to a token.
+        
+        Args:
+            pattern: Visual pattern to decode
+        
+        Returns:
+            Decoded token, or <unk> if pattern is not recognized
+        """
+        pattern_str = self._pattern_to_string(pattern)
+        
+        if pattern_str in self.pattern_to_token_id:
+            token_id = self.pattern_to_token_id[pattern_str]
+            return self.id_to_token[token_id]
+        
+        # If exact pattern not found, find the closest match
+        # (Simplified approach: for full implementation, would use a more efficient method)
+        
+        # Convert to arrays for easier comparison
+        query_array = np.array(list(map(int, pattern_str.split(','))))
+        
+        best_match = None
+        best_similarity = -1
+        
+        for p_str in self.pattern_to_token_id:
+            p_array = np.array(list(map(int, p_str.split(','))))
+            # Calculate similarity (number of matching positions)
+            similarity = np.sum(query_array == p_array) / len(query_array)
+            
+            if similarity > best_similarity:
+                best_similarity = similarity
+                best_match = p_str
+        
+        if best_match and best_similarity > 0.8:  # Threshold for matching
+            token_id = self.pattern_to_token_id[best_match]
+            return self.id_to_token[token_id]
+        
+        return self.id_to_token.get(1, "<unk>")  # Default to <unk>
+    
+    def decode(self, patterns: np.ndarray) -> List[str]:
+        """
+        Decode a sequence of patterns to tokens.
+        
+        Args:
+            patterns: Array of patterns, shape [sequence_length, grid_size, grid_size]
+        
+        Returns:
+            List of decoded tokens
+        """
+        return [self.decode_single(pattern) for pattern in patterns]
+    
+    @classmethod
+    def from_encoder(cls, encoder):
+        """
+        Create a decoder from an encoder instance.
+        
+        Args:
+            encoder: DeterministicEncoder instance
+        
+        Returns:
+            DeterministicDecoder instance
+        """
+        # Create mapping from pattern to token ID
+        pattern_to_token_id = {}
+        
+        for token_id, pattern in encoder.token_patterns.items():
+            pattern_str = ','.join(map(str, pattern.flatten()))
+            pattern_to_token_id[pattern_str] = token_id
+        
+        return cls(pattern_to_token_id, encoder.id_to_token)
+
+
+class LearnableDecoder(nn.Module):
+    """
+    Neural network-based decoder that learns to map visual patterns to token probabilities.
+    """
+    
+    def __init__(self, id_to_token: Dict[int, str], vocab_size: int, 
+                 hidden_dim: int = 256, num_colors: int = 3, grid_size: int = 5):
+        """
+        Initialize the learnable decoder.
+        
+        Args:
+            id_to_token: Dictionary mapping token IDs to tokens
+            vocab_size: Size of the token vocabulary
+            hidden_dim: Dimension of hidden layers
+            num_colors: Number of colors in the visual patterns
+            grid_size: Size of the grid for visual patterns
+        """
+        super().__init__()
+        self.id_to_token = id_to_token
+        self.vocab_size = vocab_size
+        self.num_colors = num_colors
+        self.grid_size = grid_size
+        
+        # CNN layers to process the visual patterns
+        self.conv1 = nn.Conv2d(num_colors, 32, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        
+        # Calculate the flattened size after convolutions (no pooling for 5x5)
+        conv_output_size = 64 * grid_size * grid_size
+        
+        # Dense layers
+        self.fc1 = nn.Linear(conv_output_size, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = nn.Linear(hidden_dim, vocab_size)
+        
+        # Dropout for regularization
+        self.dropout = nn.Dropout(0.2)
+    
+    def forward(self, patterns: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass of the decoder.
+        
+        Args:
+            patterns: Visual patterns, shape [batch_size, grid_size, grid_size]
+                     or [batch_size, grid_size, grid_size, num_colors] if one-hot encoded
+        
+        Returns:
+            Token probabilities, shape [batch_size, vocab_size]
+        """
+        batch_size = patterns.shape[0]
+        
+        # Convert to one-hot encoding if not already
+        if patterns.dim() == 3:
+            patterns = F.one_hot(patterns.long(), num_classes=self.num_colors).float()
+            # Shape: [batch_size, grid_size, grid_size, num_colors]
+        
+        # Rearrange dimensions for CNN
+        x = patterns.permute(0, 3, 1, 2)
+        # Shape: [batch_size, num_colors, grid_size, grid_size]
+        
+        # Apply CNN layers (no pooling for small 5x5 grids)
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        
+        # Flatten
+        x = x.view(batch_size, -1)
+        
+        # Apply dense layers
+        x = F.relu(self.fc1(x))
+        x = self.dropout(x)
+        x = F.relu(self.fc2(x))
+        x = self.dropout(x)
+        x = self.fc3(x)
+        
+        # Apply softmax to get probabilities
+        token_probs = F.softmax(x, dim=-1)
+        
+        return token_probs
+    
+    def decode(self, patterns: torch.Tensor, temperature: float = 1.0, 
+               greedy: bool = False) -> List[str]:
+        """
+        Decode patterns to tokens.
+        
+        Args:
+            patterns: Visual patterns, shape [batch_size, grid_size, grid_size]
+                     or [batch_size, grid_size, grid_size, num_colors] if one-hot encoded
+            temperature: Temperature parameter for sampling (higher values mean more random)
+            greedy: If True, take the most likely token instead of sampling
+        
+        Returns:
+            List of decoded tokens
+        """
+        # Get token probabilities
+        token_probs = self.forward(patterns)
+        
+        if greedy:
+            # Take the most likely token
+            token_ids = torch.argmax(token_probs, dim=1)
+        else:
+            # Apply temperature scaling
+            if temperature != 1.0:
+                token_probs = token_probs.pow(1.0 / temperature)
+                token_probs = token_probs / token_probs.sum(dim=1, keepdim=True)
+            
+            # Sample from the distribution
+            token_ids = torch.multinomial(token_probs, num_samples=1).squeeze(-1)
+        
+        # Convert to list of tokens
+        tokens = [self.id_to_token.get(id.item(), "<unk>") for id in token_ids]
+        
+        return tokens
+
+
+================================================
+FILE: diffusion.py
+================================================
+"""
+Diffusion model component for the Visual Token Diffusion Language Model.
+Implements a discrete diffusion process for the visual token space.
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import List, Tuple, Dict, Optional
+
+
+class SimpleDiffusionModel(nn.Module):
+    """
+    A simple discrete diffusion model for visual tokens.
+    Implements a Markovian diffusion process for discrete data.
+    """
+    
+    def __init__(self, num_colors: int = 3, grid_size: int = 5, 
+                 timesteps: int = 20, hidden_dim: int = 256):
+        """
+        Initialize the diffusion model.
+        
+        Args:
+            num_colors: Number of colors in the visual patterns
+            grid_size: Size of the grid for visual patterns
+            timesteps: Number of diffusion timesteps
+            hidden_dim: Dimension of hidden layers
+        """
+        super().__init__()
+        self.num_colors = num_colors
+        self.grid_size = grid_size
+        self.timesteps = timesteps
+        
+        # Define the noise schedule (linear beta schedule)
+        self.register_buffer('beta', torch.linspace(0.1, 0.9, timesteps))
+        self.register_buffer('alpha', 1. - self.beta)
+        self.register_buffer('alpha_cumprod', torch.cumprod(self.alpha, dim=0))
+        
+        # Define the transition matrix
+        self.register_buffer('transition_matrix', self._create_transition_matrix())
+        
+        # Define the denoising network
+        self.denoising_network = self._create_denoising_network(hidden_dim)
+    
+    def _create_transition_matrix(self) -> torch.Tensor:
+        """
+        Create the transition matrix for the forward process.
+        Each row sums to 1 and represents the probability of transitioning
+        from one color to another when adding noise.
+        
+        Returns:
+            Transition matrix of shape [timesteps, num_colors, num_colors]
+        """
+        transition_matrix = torch.zeros(self.timesteps, self.num_colors, self.num_colors)
+        
+        for t in range(self.timesteps):
+            # As t increases, we move closer to a uniform distribution
+            p_stay = self.alpha_cumprod[t]
+            p_change = (1 - p_stay) / (self.num_colors - 1)
+            
+            # Fill the transition matrix
+            for i in range(self.num_colors):
+                for j in range(self.num_colors):
+                    if i == j:
+                        transition_matrix[t, i, j] = p_stay
+                    else:
+                        transition_matrix[t, i, j] = p_change
+        
+        return transition_matrix
+    
+    def _create_denoising_network(self, hidden_dim: int) -> nn.Module:
+        """
+        Create the denoising network that predicts the original pattern
+        from a noisy pattern at a given timestep.
+        
+        Args:
+            hidden_dim: Dimension of hidden layers
+        
+        Returns:
+            Neural network module
+        """
+        denoising_net = nn.Sequential(
+            # Input: noisy pattern flattened + timestep embedding
+            nn.Linear(self.grid_size * self.grid_size * self.num_colors + self.timesteps, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, self.grid_size * self.grid_size * self.num_colors)
+        )
+        
+        return denoising_net
+    
+    def add_noise(self, patterns: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        """
+        Add noise to the patterns according to the forward process.
+        
+        Args:
+            patterns: Original patterns, shape [batch_size, grid_size, grid_size]
+            t: Timesteps for each sample in the batch, shape [batch_size]
+        
+        Returns:
+            Noisy patterns, shape [batch_size, grid_size, grid_size]
+        """
+        batch_size = patterns.shape[0]
+        device = patterns.device
+        
+        # Create one-hot encoded patterns
+        patterns_one_hot = F.one_hot(patterns.long(), num_classes=self.num_colors).float()
+        # Shape: [batch_size, grid_size, grid_size, num_colors]
+        
+        # Get transition matrices for each timestep in the batch
+        batch_transitions = torch.stack([self.transition_matrix[t[i]] for i in range(batch_size)])
+        # Shape: [batch_size, num_colors, num_colors]
+        
+        # Apply transition probabilities
+        patterns_flat = patterns_one_hot.view(batch_size, -1, self.num_colors)
+        # Shape: [batch_size, grid_size*grid_size, num_colors]
+        
+        # For each position, multiply by the transition matrix
+        # This gives the probability of transitioning to each color
+        transition_probs = torch.bmm(patterns_flat, batch_transitions)
+        # Shape: [batch_size, grid_size*grid_size, num_colors]
+        
+        # Sample from the categorical distribution
+        noisy_patterns_flat = torch.multinomial(
+            transition_probs.view(-1, self.num_colors),
+            num_samples=1
+        ).view(batch_size, self.grid_size * self.grid_size)
+        
+        # Reshape back to grid
+        noisy_patterns = noisy_patterns_flat.view(batch_size, self.grid_size, self.grid_size)
+        
+        return noisy_patterns
+    
+    def denoise(self, noisy_patterns: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        """
+        Denoise the patterns according to the reverse process.
+        
+        Args:
+            noisy_patterns: Noisy patterns, shape [batch_size, grid_size, grid_size]
+            t: Timesteps for each sample in the batch, shape [batch_size]
+        
+        Returns:
+            Predicted original patterns, shape [batch_size, grid_size, grid_size]
+        """
+        batch_size = noisy_patterns.shape[0]
+        device = noisy_patterns.device
+        
+        # One-hot encode noisy patterns
+        noisy_one_hot = F.one_hot(noisy_patterns.long(), num_classes=self.num_colors)
+        # Shape: [batch_size, grid_size, grid_size, num_colors]
+        
+        # Flatten the one-hot patterns
+        noisy_flat = noisy_one_hot.view(batch_size, -1)
+        # Shape: [batch_size, grid_size*grid_size*num_colors]
+        
+        # Create timestep embeddings (one-hot)
+        t_emb = F.one_hot(t.long(), num_classes=self.timesteps).float()
+        # Shape: [batch_size, timesteps]
+        
+        # Concatenate noisy patterns and timestep embeddings
+        network_input = torch.cat([noisy_flat, t_emb], dim=1)
+        
+        # Pass through the denoising network
+        network_output = self.denoising_network(network_input)
+        # Shape: [batch_size, grid_size*grid_size*num_colors]
+        
+        # Reshape to [batch_size, grid_size, grid_size, num_colors]
+        predicted_probs = network_output.view(
+            batch_size, self.grid_size, self.grid_size, self.num_colors
+        )
+        
+        # Apply softmax to get probabilities
+        predicted_probs = F.softmax(predicted_probs, dim=-1)
+        
+        # Get the most likely color at each position
+        predicted_patterns = torch.argmax(predicted_probs, dim=-1)
+        
+        return predicted_patterns
+    
+    def forward(self, patterns: torch.Tensor, t: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """
+        Forward pass of the diffusion model.
+        
+        Args:
+            patterns: Noisy patterns, shape [batch_size, grid_size, grid_size]
+            t: Timesteps for each sample in the batch, shape [batch_size]
+        
+        Returns:
+            Predicted pattern probabilities, shape [batch_size, grid_size, grid_size, num_colors]
+        """
+        batch_size = patterns.shape[0]
+        device = patterns.device
+        
+        # If no timesteps provided, sample random ones
+        if t is None:
+            t = torch.randint(0, self.timesteps, (batch_size,), device=device)
+        
+        # One-hot encode noisy patterns
+        noisy_one_hot = F.one_hot(patterns.long(), num_classes=self.num_colors).float()
+        # Shape: [batch_size, grid_size, grid_size, num_colors]
+        
+        # Flatten the one-hot patterns
+        noisy_flat = noisy_one_hot.view(batch_size, -1)
+        # Shape: [batch_size, grid_size*grid_size*num_colors]
+        
+        # Create timestep embeddings (one-hot)
+        t_emb = F.one_hot(t.long(), num_classes=self.timesteps).float()
+        # Shape: [batch_size, timesteps]
+        
+        # Concatenate noisy patterns and timestep embeddings
+        network_input = torch.cat([noisy_flat, t_emb], dim=1)
+        
+        # Pass through the denoising network
+        network_output = self.denoising_network(network_input)
+        # Shape: [batch_size, grid_size*grid_size*num_colors]
+        
+        # Reshape to [batch_size, grid_size, grid_size, num_colors]
+        predicted_probs = network_output.view(
+            batch_size, self.grid_size, self.grid_size, self.num_colors
+        )
+        
+        # Apply softmax to get probabilities
+        predicted_probs = F.softmax(predicted_probs, dim=-1)
+        
+        return predicted_probs
+    
+    def sample(self, batch_size: int, device: torch.device) -> torch.Tensor:
+        """
+        Sample new patterns from random noise using the reverse process.
+        
+        Args:
+            batch_size: Number of patterns to sample
+            device: Device to run the sampling on
+        
+        Returns:
+            Sampled patterns, shape [batch_size, grid_size, grid_size]
+        """
+        # Start with random patterns
+        patterns = torch.randint(
+            0, self.num_colors, 
+            (batch_size, self.grid_size, self.grid_size),
+            device=device
+        )
+        
+        # Iteratively denoise
+        for t in range(self.timesteps - 1, -1, -1):
+            t_batch = torch.full((batch_size,), t, device=device)
+            patterns = self.denoise(patterns, t_batch)
+        
+        return patterns
+
+
+class AdvancedDiffusionModel(nn.Module):
+    """
+    More advanced discrete diffusion model for visual tokens.
+    Includes attention mechanisms and improved network architecture.
+    """
+    
+    def __init__(self, num_colors: int = 3, grid_size: int = 5, 
+                 timesteps: int = 50, hidden_dim: int = 512, 
+                 num_heads: int = 8, dropout: float = 0.1):
+        """
+        Initialize the advanced diffusion model.
+        
+        Args:
+            num_colors: Number of colors in the visual patterns
+            grid_size: Size of the grid for visual patterns
+            timesteps: Number of diffusion timesteps
+            hidden_dim: Dimension of hidden layers
+            num_heads: Number of attention heads
+            dropout: Dropout probability
+        """
+        super().__init__()
+        self.num_colors = num_colors
+        self.grid_size = grid_size
+        self.timesteps = timesteps
+        self.hidden_dim = hidden_dim
+        
+        # Define the noise schedule (cosine schedule)
+        self.register_buffer('beta', self._cosine_beta_schedule(timesteps))
+        self.register_buffer('alpha', 1. - self.beta)
+        self.register_buffer('alpha_cumprod', torch.cumprod(self.alpha, dim=0))
+        
+        # Define the transition matrix
+        self.register_buffer('transition_matrix', self._create_transition_matrix())
+        
+        # Time embedding
+        self.time_embed = nn.Sequential(
+            nn.Linear(timesteps, hidden_dim),
+            nn.SiLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+        )
+        
+        # Input projection
+        self.input_proj = nn.Linear(self.grid_size * self.grid_size * self.num_colors, hidden_dim)
+        
+        # Transformer blocks
+        self.attention = nn.MultiheadAttention(hidden_dim, num_heads, dropout=dropout)
+        self.norm1 = nn.LayerNorm(hidden_dim)
+        self.norm2 = nn.LayerNorm(hidden_dim)
+        self.ff = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim * 4),
+            nn.GELU(),
+            nn.Linear(hidden_dim * 4, hidden_dim),
+            nn.Dropout(dropout)
+        )
+        
+        # Output projection
+        self.output_proj = nn.Linear(hidden_dim, self.grid_size * self.grid_size * self.num_colors)
+    
+    def _cosine_beta_schedule(self, timesteps: int) -> torch.Tensor:
+        """
+        Create a cosine noise schedule.
+        
+        Args:
+            timesteps: Number of diffusion timesteps
+        
+        Returns:
+            Beta schedule of shape [timesteps]
+        """
+        steps = timesteps + 1
+        s = 0.008
+        x = torch.linspace(0, timesteps, steps)
+        alphas_cumprod = torch.cos(((x / timesteps) + s) / (1 + s) * torch.pi * 0.5) ** 2
+        alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
+        betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
+        return torch.clip(betas, 0.0001, 0.9999)
+    
+    def _create_transition_matrix(self) -> torch.Tensor:
+        """
+        Create the transition matrix for the forward process.
+        
+        Returns:
+            Transition matrix of shape [timesteps, num_colors, num_colors]
+        """
+        transition_matrix = torch.zeros(self.timesteps, self.num_colors, self.num_colors)
+        
+        for t in range(self.timesteps):
+            # As t increases, we move closer to a uniform distribution
+            p_stay = self.alpha_cumprod[t]
+            p_change = (1 - p_stay) / (self.num_colors - 1)
+            
+            # Fill the transition matrix
+            for i in range(self.num_colors):
+                for j in range(self.num_colors):
+                    if i == j:
+                        transition_matrix[t, i, j] = p_stay
+                    else:
+                        transition_matrix[t, i, j] = p_change
+        
+        return transition_matrix
+    
+    def add_noise(self, patterns: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        """
+        Add noise to the patterns according to the forward process.
+        
+        Args:
+            patterns: Original patterns, shape [batch_size, grid_size, grid_size]
+            t: Timesteps for each sample in the batch, shape [batch_size]
+        
+        Returns:
+            Noisy patterns, shape [batch_size, grid_size, grid_size]
+        """
+        batch_size = patterns.shape[0]
+        device = patterns.device
+        
+        # Create one-hot encoded patterns
+        patterns_one_hot = F.one_hot(patterns.long(), num_classes=self.num_colors).float()
+        # Shape: [batch_size, grid_size, grid_size, num_colors]
+        
+        # Get transition matrices for each timestep in the batch
+        batch_transitions = torch.stack([self.transition_matrix[t[i]] for i in range(batch_size)])
+        # Shape: [batch_size, num_colors, num_colors]
+        
+        # Apply transition probabilities
+        patterns_flat = patterns_one_hot.reshape(batch_size, -1, self.num_colors)
+        # Shape: [batch_size, grid_size*grid_size, num_colors]
+        
+        # For each position, multiply by the transition matrix
+        transition_probs = torch.bmm(patterns_flat, batch_transitions)
+        # Shape: [batch_size, grid_size*grid_size, num_colors]
+        
+        # Sample from the categorical distribution
+        noisy_patterns_flat = torch.multinomial(
+            transition_probs.reshape(-1, self.num_colors),
+            num_samples=1
+        ).reshape(batch_size, self.grid_size * self.grid_size)
+        
+        # Reshape back to grid
+        noisy_patterns = noisy_patterns_flat.reshape(batch_size, self.grid_size, self.grid_size)
+        
+        return noisy_patterns
+    
+    def forward(self, patterns: torch.Tensor, t: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """
+        Forward pass of the diffusion model.
+        
+        Args:
+            patterns: Original patterns, shape [batch_size, grid_size, grid_size]
+            t: Optional timesteps for each sample in the batch, shape [batch_size]
+                If None, random timesteps will be sampled.
+        
+        Returns:
+            Predicted denoised patterns, shape [batch_size, grid_size, grid_size]
+        """
+        batch_size = patterns.shape[0]
+        device = patterns.device
+        
+        # Sample random timesteps if not provided
+        if t is None:
+            t = torch.randint(0, self.timesteps, (batch_size,), device=device)
+        
+        # Add noise to the patterns
+        noisy_patterns = self.add_noise(patterns, t)
+        
+        # One-hot encode noisy patterns
+        noisy_one_hot = F.one_hot(noisy_patterns.long(), num_classes=self.num_colors).float()
+        # Shape: [batch_size, grid_size, grid_size, num_colors]
+        
+        # Flatten the one-hot patterns
+        noisy_flat = noisy_one_hot.reshape(batch_size, -1)
+        # Shape: [batch_size, grid_size*grid_size*num_colors]
+        
+        # Create timestep embeddings (one-hot)
+        t_emb = F.one_hot(t.long(), num_classes=self.timesteps).float()
+        # Shape: [batch_size, timesteps]
+        
+        # Embed time
+        time_emb = self.time_embed(t_emb)
+        # Shape: [batch_size, hidden_dim]
+        
+        # Project input to hidden dimension
+        x = self.input_proj(noisy_flat)
+        # Shape: [batch_size, hidden_dim]
+        
+        # Add time embedding
+        x = x + time_emb
+        
+        # Self-attention
+        x_norm = self.norm1(x.unsqueeze(0))  # [1, batch_size, hidden_dim]
+        attention_output, _ = self.attention(x_norm, x_norm, x_norm)
+        x = x + attention_output.squeeze(0)
+        
+        # Feed-forward
+        x_norm = self.norm2(x)
+        ff_output = self.ff(x_norm)
+        x = x + ff_output
+        
+        # Project to output
+        output = self.output_proj(x)
+        # Shape: [batch_size, grid_size*grid_size*num_colors]
+        
+        # Reshape to [batch_size, grid_size, grid_size, num_colors]
+        predicted_probs = output.reshape(batch_size, self.grid_size, self.grid_size, self.num_colors)
+        
+        # Apply softmax to get probabilities
+        predicted_probs = F.softmax(predicted_probs, dim=-1)
+        
+        return predicted_probs
+    
+    def sample(self, batch_size: int, device: torch.device, 
+               temperature: float = 1.0) -> torch.Tensor:
+        """
+        Sample new patterns from random noise using the reverse process.
+        
+        Args:
+            batch_size: Number of patterns to sample
+            device: Device to run the sampling on
+            temperature: Temperature for sampling (higher = more random)
+        
+        Returns:
+            Sampled patterns, shape [batch_size, grid_size, grid_size]
+        """
+        # Start with random patterns
+        patterns = torch.randint(
+            0, self.num_colors, 
+            (batch_size, self.grid_size, self.grid_size),
+            device=device
+        )
+        
+        # Iteratively denoise
+        for t in range(self.timesteps - 1, -1, -1):
+            # Create timestep batch
+            t_batch = torch.full((batch_size,), t, device=device)
+            
+            # Get predicted probabilities
+            pred_probs = self.forward(patterns, t_batch)
+            
+            # Apply temperature
+            if temperature != 1.0:
+                pred_probs = pred_probs.pow(1.0 / temperature)
+                pred_probs = pred_probs / pred_probs.sum(dim=-1, keepdim=True)
+            
+            # Sample from the predicted distribution
+            if t > 0:  # For intermediate steps, sample
+                patterns_flat = pred_probs.reshape(-1, self.num_colors)
+                sampled_flat = torch.multinomial(patterns_flat, num_samples=1)
+                patterns = sampled_flat.reshape(batch_size, self.grid_size, self.grid_size)
+            else:  # For the final step, take the most likely color
+                patterns = torch.argmax(pred_probs, dim=-1)
+        
+        return patterns
+
+
+================================================
+FILE: encoder-dot-py-suggestions
+================================================
+ encoder.py                                                                                                                                          │ │
+│ │                                                                                                                                                     │ │
+│ │   174                                                                                                                                               │ │
+│ │   175            return pattern_probs                                                                                                               │ │
+│ │   176                                                                                                                                               │ │
+│ │   177 +      def forward_logits(self, token_ids: torch.Tensor) -> torch.Tensor:                                                                     │ │
+│ │   178 +          """                                                                                                                                │ │
+│ │   179 +          Forward pass of the encoder returning logits (before softmax).                                                                     │ │
+│ │   180 +                                                                                                                                             │ │
+│ │   181 +          Args:                                                                                                                              │ │
+│ │   182 +              token_ids: Tensor of token IDs, shape [batch_size]                                                                             │ │
+│ │   183 +                                                                                                                                             │ │
+│ │   184 +          Returns:                                                                                                                           │ │
+│ │   185 +              Tensor of visual pattern logits, shape [batch_size, grid_size, grid_size, num_colors]                                          │ │
+│ │   186 +          """                                                                                                                                │ │
+│ │   187 +          # Get token embeddings                                                                                                             │ │
+│ │   188 +          embeddings = self.token_embedding(token_ids)  # [batch_size, embedding_dim]                                                        │ │
+│ │   189 +                                                                                                                                             │ │
+│ │   190 +          # Process through dense layers                                                                                                     │ │
+│ │   191 +          x = F.relu(self.fc1(embeddings))                                                                                                   │ │
+│ │   192 +          x = F.relu(self.fc2(x))                                                                                                            │ │
+│ │   193 +          x = self.fc3(x)                                                                                                                    │ │
+│ │   194 +                                                                                                                                             │ │
+│ │   195 +          # Reshape to [batch_size, grid_size, grid_size, num_colors]                                                                        │ │
+│ │   196 +          batch_size = token_ids.shape[0]                                                                                                    │ │
+│ │   197 +          logits = x.view(batch_size, self.grid_size, self.grid_size, self.num_colors)                                                       │ │
+│ │   198 +                                                                                                                                             │ │
+│ │   199 +          return logits                                                                                                                      │ │
+│ │   200 +                                                                                                                                             │ │
+│ │   201        def sample_patterns(self, token_ids: torch.Tensor) -> torch.Tensor:                                                                    │ │
+│ │   202            """                                                                                                                                │ │
+│ │   203            Sample discrete patterns from the encoder outputs.
+
+
+
+================================================
+FILE: encoder.py
+================================================
+"""
+Encoder module for the Visual Token Diffusion Language Model.
+Maps text tokens to visual patterns (5x5 grids with 3 colors).
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import Dict, List, Tuple, Optional
+import hashlib
+
+
+class DeterministicEncoder:
+    """
+    Simple deterministic encoder that maps tokens to fixed visual patterns.
+    This is a baseline approach for initial testing.
+    """
+
+    def __init__(self, token_to_id: Dict[str, int], num_colors: int = 3, grid_size: int = 5):
+        """
+        Initialize the deterministic encoder.
+
+        Args:
+            token_to_id: Dictionary mapping tokens to their IDs
+            num_colors: Number of colors to use in the visual patterns
+            grid_size: Size of the square grid for visual patterns
+        """
+        self.token_to_id = token_to_id
+        self.id_to_token = {id: token for token, id in token_to_id.items()}
+        self.num_colors = num_colors
+        self.grid_size = grid_size
+
+        # Generate fixed patterns for each token ID
+        self.token_patterns = self._generate_token_patterns()
+
+    def _generate_token_patterns(self) -> Dict[int, np.ndarray]:
+        """
+        Generate unique visual patterns for each token.
+        Uses a hash-based approach to ensure patterns are deterministic and diverse.
+
+        Returns:
+            Dictionary mapping token IDs to their visual patterns
+        """
+        patterns = {}
+
+        for token_id in self.id_to_token.keys():
+            # Generate a seed based on the token ID
+            seed = int(hashlib.md5(str(token_id).encode()).hexdigest(), 16) % 10000
+            np.random.seed(seed)
+
+            # Generate a random pattern
+            pattern = np.random.randint(0, self.num_colors,
+                                       (self.grid_size, self.grid_size))
+
+            # Ensure special tokens have special patterns
+            if token_id < 3:  # Special tokens: pad, unk, eos
+                if token_id == 0:  # <pad>
+                    pattern = np.zeros((self.grid_size, self.grid_size))
+                elif token_id == 1:  # <unk>
+                    pattern = np.ones((self.grid_size, self.grid_size))
+                elif token_id == 2:  # <eos>
+                    pattern = np.full((self.grid_size, self.grid_size), 2)
+
+            patterns[token_id] = pattern
+
+        return patterns
+
+    def encode(self, token_ids: List[int]) -> np.ndarray:
+        """
+        Encode a sequence of token IDs into visual patterns.
+
+        Args:
+            token_ids: List of token IDs
+
+        Returns:
+            Array of shape [len(token_ids), grid_size, grid_size] containing the visual patterns
+        """
+        patterns = []
+
+        for token_id in token_ids:
+            if token_id in self.token_patterns:
+                patterns.append(self.token_patterns[token_id])
+            else:
+                # Use unknown token pattern
+                patterns.append(self.token_patterns[1])  # <unk>
+
+        return np.array(patterns)
+
+    def get_pattern(self, token: str) -> Optional[np.ndarray]:
+        """
+        Get the visual pattern for a specific token.
+
+        Args:
+            token: Token string
+
+        Returns:
+            Visual pattern for the token, or None if token is not in vocabulary
+        """
+        if token in self.token_to_id:
+            token_id = self.token_to_id[token]
+            return self.token_patterns[token_id]
+        return None
+
+
+class LearnableEncoder(nn.Module):
+    """
+    Neural network-based encoder that learns to map token embeddings to visual patterns.
+    """
+
+    def __init__(self, token_to_id: Dict[str, int], embedding_dim: int = 128,
+                 hidden_dim: int = 256, num_colors: int = 3, grid_size: int = 5):
+        """
+        Initialize the learnable encoder.
+
+        Args:
+            token_to_id: Dictionary mapping tokens to their IDs
+            embedding_dim: Dimension of token embeddings
+            hidden_dim: Dimension of hidden layers
+            num_colors: Number of colors to use in the visual patterns
+            grid_size: Size of the square grid for visual patterns
+        """
+        super().__init__()
+        self.token_to_id = token_to_id
+        self.vocab_size = len(token_to_id)
+        self.num_colors = num_colors
+        self.grid_size = grid_size
+
+        # Token embedding layer
+        self.token_embedding = nn.Embedding(self.vocab_size, embedding_dim)
+
+        # Dense layers
+        self.fc1 = nn.Linear(embedding_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = nn.Linear(hidden_dim, grid_size * grid_size * num_colors)
+
+        # Initialize weights
+        self._init_weights()
+
+    def _init_weights(self):
+        """Initialize network weights"""
+        nn.init.normal_(self.token_embedding.weight, mean=0, std=0.02)
+        nn.init.xavier_uniform_(self.fc1.weight)
+        nn.init.xavier_uniform_(self.fc2.weight)
+        nn.init.xavier_uniform_(self.fc3.weight)
+        nn.init.zeros_(self.fc1.bias)
+        nn.init.zeros_(self.fc2.bias)
+        nn.init.zeros_(self.fc3.bias)
+
+    def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass of the encoder.
+
+        Args:
+            token_ids: Tensor of token IDs, shape [batch_size]
+
+        Returns:
+            Tensor of visual patterns, shape [batch_size, grid_size, grid_size, num_colors]
+        """
+        # Get token embeddings
+        embeddings = self.token_embedding(token_ids)  # [batch_size, embedding_dim]
+
+        # Process through dense layers
+        x = F.relu(self.fc1(embeddings))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+
+        # Reshape to [batch_size, grid_size, grid_size, num_colors]
+        batch_size = token_ids.shape[0]
+        x = x.view(batch_size, self.grid_size, self.grid_size, self.num_colors)
+
+        # Apply softmax along the color dimension to get probabilities
+        pattern_probs = F.softmax(x, dim=-1)
+
+        return pattern_probs
+
+    def forward_logits(self, token_ids: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass of the encoder returning logits (before softmax).
+        
+        Args:
+            token_ids: Tensor of token IDs, shape [batch_size]
+            
+        Returns:
+            Tensor of visual pattern logits, shape [batch_size, grid_size, grid_size, num_colors]
+        """
+        # Get token embeddings
+        embeddings = self.token_embedding(token_ids)  # [batch_size, embedding_dim]
+        
+        # Process through dense layers
+        x = F.relu(self.fc1(embeddings))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        
+        # Reshape to [batch_size, grid_size, grid_size, num_colors]
+        batch_size = token_ids.shape[0]
+        logits = x.view(batch_size, self.grid_size, self.grid_size, self.num_colors)
+        
+        return logits
+
+    def sample_patterns(self, token_ids: torch.Tensor) -> torch.Tensor:
+        """
+        Sample discrete patterns from the encoder outputs.
+
+        Args:
+            token_ids: Tensor of token IDs, shape [batch_size]
+
+        Returns:
+            Tensor of discrete patterns, shape [batch_size, grid_size, grid_size]
+        """
+        pattern_probs = self.forward(token_ids)  # [batch_size, grid_size, grid_size, num_colors]
+
+        # Sample from the categorical distribution
+        categorical = torch.distributions.Categorical(probs=pattern_probs)
+        samples = categorical.sample()  # [batch_size, grid_size, grid_size]
+
+        return samples
+
+    def encode(self, token_ids: List[int], device: torch.device) -> np.ndarray:
+        """
+        Encode a sequence of token IDs into visual patterns.
+
+        Args:
+            token_ids: List of token IDs
+            device: Device to run the encoding on
+
+        Returns:
+            Array of shape [len(token_ids), grid_size, grid_size] containing the visual patterns
+        """
+        # Convert to tensor
+        token_tensor = torch.tensor(token_ids, dtype=torch.long, device=device)
+
+        # Get patterns (using hard sampling for discrete patterns)
+        with torch.no_grad():
+            patterns = self.sample_patterns(token_tensor)
+
+        # Convert to numpy
+        return patterns.cpu().numpy()
+
+
+
+================================================
+FILE: environment-cpu.yml
+================================================
+name: visual-token-diffuser-cpu
+channels:
+  - conda-forge
+  - defaults
+  - pytorch
+dependencies:
+  - python=3.11
+  - pytorch=2.6.0
+  - torchvision
+  - numpy
+  - matplotlib
+  - tqdm
+  - scikit-learn
+  - pandas
+  - jupyter
+  - ipykernel
+  - pytest
+  - pip
+  - pip:
+      - tensorboard
+
+
+================================================
+FILE: environment-gpu.yml
+================================================
+name: visual-token-diffuser-gpu
+channels:
+  - conda-forge
+  - defaults
+  - pytorch
+  - nvidia
+dependencies:
+  - python=3.11
+  - pytorch=2.6.0
+  - torchvision
+  - cudatoolkit=11.8
+  - numpy
+  - matplotlib
+  - tqdm
+  - scikit-learn
+  - pandas
+  - jupyter
+  - ipykernel
+  - pytest
+  - pip
+  - pip:
+      - tensorboard
+
+
+================================================
+FILE: environment.yml
+================================================
+name: visual-token-diffuser
+channels:
+  - conda-forge
+  - defaults
+  - pytorch
+  - nvidia
+dependencies:
+  - python=3.11
+  - pytorch=2.6.0
+  - torchvision
+  - cudatoolkit=11.8
+  - numpy
+  - matplotlib
+  - tqdm
+  - scikit-learn
+  - pandas
+  - jupyter
+  - ipykernel
+  - pytest
+  - pip
+  - pip:
+      - tensorboard
+
+
+
+================================================
+FILE: model.py
+================================================
+# visual_token_diffuser/model.py
+
+"""
+Main model for the Visual Token Diffusion Language Model.
+Integrates the encoder, diffusion model, and decoder components.
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import Dict, List, Tuple, Optional
+
+# Import components
+from encoder import DeterministicEncoder, LearnableEncoder
+from diffusion import SimpleDiffusionModel, AdvancedDiffusionModel
+from decoder import DeterministicDecoder, LearnableDecoder
+
+
+class VisualTokenDiffusionLM:
+    """
+    Complete Visual Token Diffusion Language Model.
+    Combines encoder, diffusion, and decoder components.
+    """
+
+    def __init__(self, token_to_id: Dict[str, int],
+                 encoder_type: str = "deterministic",
+                 diffusion_type: str = "simple",
+                 decoder_type: str = "deterministic",
+                 num_colors: int = 3,
+                 grid_size: int = 5,
+                 diffusion_timesteps: int = 20,
+                 hidden_dim: int = 256,
+                 device: Optional[torch.device] = None,
+                 # ADDED: Parameter to control training stage
+                 initial_training_stage: str = "diffusion"):
+        """
+        Initialize the Visual Token Diffusion LM.
+
+        Args:
+            token_to_id: Dictionary mapping tokens to their IDs
+            encoder_type: Type of encoder ("deterministic" or "learnable")
+            diffusion_type: Type of diffusion model ("simple" or "advanced")
+            decoder_type: Type of decoder ("deterministic" or "learnable")
+            num_colors: Number of colors in the visual patterns
+            grid_size: Size of the grid for visual patterns
+            diffusion_timesteps: Number of diffusion timesteps
+            hidden_dim: Dimension of hidden layers
+            device: Device to run the model on (CPU or GPU)
+            initial_training_stage: The stage to initialize the model in ('reconstruction' or 'diffusion')
+        """
+        self.token_to_id = token_to_id
+        self.id_to_token = {id: token for token, id in token_to_id.items()}
+        self.vocab_size = len(token_to_id)
+        self.num_colors = num_colors
+        self.grid_size = grid_size
+        self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        # ADDED: Store the current training stage
+        self.training_stage = initial_training_stage
+        print(f"Initializing VisualTokenDiffusionLM in '{self.training_stage}' stage.")
+
+        # Initialize encoder
+        if encoder_type == "deterministic":
+            self.encoder = DeterministicEncoder(
+                token_to_id, num_colors=num_colors, grid_size=grid_size
+            )
+            self.is_encoder_learnable = False
+        else:
+            self.encoder = LearnableEncoder(
+                token_to_id, hidden_dim=hidden_dim,
+                num_colors=num_colors, grid_size=grid_size
+            ).to(self.device)
+            self.is_encoder_learnable = True
+
+        # Initialize diffusion model
+        if diffusion_type == "simple":
+            self.diffusion = SimpleDiffusionModel(
+                num_colors=num_colors, grid_size=grid_size,
+                timesteps=diffusion_timesteps, hidden_dim=hidden_dim
+            ).to(self.device)
+        else:
+            self.diffusion = AdvancedDiffusionModel(
+                num_colors=num_colors, grid_size=grid_size,
+                timesteps=diffusion_timesteps, hidden_dim=hidden_dim
+            ).to(self.device)
+
+        # Initialize decoder
+        # Ensure decoder is learnable if encoder is, or if explicitly requested
+        effective_decoder_type = decoder_type
+        if encoder_type == "learnable" and decoder_type == "deterministic":
+            print("Warning: LearnableEncoder selected but DeterministicDecoder requested. Forcing LearnableDecoder for reconstruction.")
+            effective_decoder_type = "learnable"
+
+        if effective_decoder_type == "deterministic" and encoder_type == "deterministic":
+            # If using deterministic encoder, we can create a corresponding decoder
+            self.decoder = DeterministicDecoder.from_encoder(self.encoder)
+            self.is_decoder_learnable = False
+        else:
+            # Use a learnable decoder if encoder is learnable or decoder is explicitly learnable
+            self.decoder = LearnableDecoder(
+                self.id_to_token, self.vocab_size,
+                hidden_dim=hidden_dim, num_colors=num_colors, grid_size=grid_size
+            ).to(self.device)
+            self.is_decoder_learnable = True
+
+        # Assert compatibility for reconstruction stage
+        if self.training_stage == 'reconstruction':
+            assert self.is_encoder_learnable and self.is_decoder_learnable, \
+                "Reconstruction stage requires both LearnableEncoder and LearnableDecoder."
+
+
+    # ADDED: Method to change the training stage
+    def set_training_stage(self, stage: str):
+        """Sets the training stage ('reconstruction' or 'diffusion')."""
+        assert stage in ['reconstruction', 'diffusion'], f"Invalid stage: {stage}"
+        print(f"Switching training stage to '{stage}'")
+        self.training_stage = stage
+        if stage == 'reconstruction':
+             assert self.is_encoder_learnable and self.is_decoder_learnable, \
+                "Reconstruction stage requires both LearnableEncoder and LearnableDecoder."
+
+
+    def _get_token_ids_from_text_batch(self, text_batch: List[str]) -> torch.Tensor:
+        """Helper to convert a batch of text strings to a tensor of token IDs."""
+        all_token_ids = []
+        max_len = 0
+        # Find max sequence length in batch for potential padding if needed later
+        # Also collect all token IDs
+        for text in text_batch:
+            words = text.lower().split()
+            token_ids = []
+            for word in words:
+                token_id = self.token_to_id.get(word, self.token_to_id.get("<unk>", 1)) # Default to <unk> ID 1
+                token_ids.append(token_id)
+            if not token_ids: # Handle empty strings if they occur
+                token_ids.append(self.token_to_id.get("<pad>", 0)) # Use <pad> ID 0
+            all_token_ids.append(torch.tensor(token_ids, dtype=torch.long))
+            max_len = max(max_len, len(token_ids))
+
+        # Combine into a single list (for now, assuming non-sequential processing)
+        # Note: This flattens the batch structure, which might be okay for independent
+        # token processing but bad for sequence modeling later.
+        flat_token_ids = torch.cat(all_token_ids)
+        return flat_token_ids.to(self.device)
+
+    def encode_text(self, text: str) -> np.ndarray:
+        """
+        Encode text to visual patterns (handling batching implicitly if learnable).
+
+        Args:
+            text: Input text
+
+        Returns:
+            Array of visual patterns
+        """
+        words = text.lower().split()
+        token_ids = [self.token_to_id.get(word, self.token_to_id.get("<unk>", 1)) for word in words]
+        if not token_ids: # Handle empty string
+             token_ids = [self.token_to_id.get("<pad>", 0)]
+
+        if self.is_encoder_learnable:
+            # Ensure encoder is in eval mode for deterministic encoding if needed
+            # Pass a batch of size 1
+            initial_mode = self.encoder.training
+            self.encoder.eval()
+            with torch.no_grad():
+                token_ids_tensor = torch.tensor(token_ids, dtype=torch.long, device=self.device)
+                # Use sampling method from encoder
+                patterns = self.encoder.sample_patterns(token_ids_tensor).cpu().numpy()
+            self.encoder.train(initial_mode) # Restore previous mode
+        else:
+            patterns = self.encoder.encode(token_ids)
+
+        return patterns # Shape [seq_len, grid_size, grid_size]
+
+    def decode_patterns(self, patterns: np.ndarray) -> str:
+        """
+        Decode visual patterns back to text.
+
+        Args:
+            patterns: Array of visual patterns, shape [num_patterns, grid_size, grid_size]
+
+        Returns:
+            Decoded text
+        """
+        if not self.is_decoder_learnable:
+            # Use DeterministicDecoder
+            tokens = self.decoder.decode(patterns)
+        else:
+            # Use LearnableDecoder
+            initial_mode = self.decoder.training
+            self.decoder.eval()
+            with torch.no_grad():
+                # Process the whole sequence/batch at once
+                patterns_tensor = torch.tensor(patterns, dtype=torch.long, device=self.device) # Decoder expects long if input is [B,G,G]
+                # Use greedy decoding for simplicity here
+                tokens = self.decoder.decode(patterns_tensor, greedy=True)
+            self.decoder.train(initial_mode) # Restore previous mode
+
+        return " ".join(tokens)
+
+    def train_step(self, text_batch: List[str], optimizer) -> Dict[str, float]:
+        """
+        Perform a single training step based on the current training stage.
+
+        Args:
+            text_batch: Batch of text samples
+            optimizer: PyTorch optimizer (assumed to be configured for the current stage)
+
+        Returns:
+            Dictionary of loss values for logging
+        """
+        # Make sure models are in training mode
+        if self.is_encoder_learnable: self.encoder.train()
+        if self.is_decoder_learnable: self.decoder.train()
+        self.diffusion.train() # Diffusion model should always be trainable if stage is diffusion
+
+        optimizer.zero_grad()
+        loss_dict = {}
+        total_loss = torch.tensor(0.0, device=self.device)
+
+        # --- Stage 1: Reconstruction (Autoencoder Training) ---
+        if self.training_stage == 'reconstruction':
+            if not (self.is_encoder_learnable and self.is_decoder_learnable):
+                 raise RuntimeError("Reconstruction stage requires LearnableEncoder and LearnableDecoder.")
+
+            # 1. Get Token IDs
+            token_ids_tensor = self._get_token_ids_from_text_batch(text_batch) # Shape [total_tokens_in_batch]
+            if token_ids_tensor.numel() == 0: # Skip empty batches
+                return {"total_loss": 0.0}
+
+            # 2. Encode Tokens to Pattern Probabilities
+            # Encoder forward returns probabilities: [batch_size, grid_size, grid_size, num_colors]
+            pattern_probs = self.encoder(token_ids_tensor)
+
+            # --- Simple Approach: Sampling (Issue: Non-differentiable) ---
+            # 3. Sample Discrete Patterns from Probabilities
+            # This uses torch.distributions.Categorical(...).sample(), which is non-differentiable.
+            # Therefore, gradients from the decoder's loss WILL NOT flow back to the encoder through this step.
+            # The encoder is only trained indirectly if its output probabilities happen to lead to
+            # samples that the decoder can use effectively. The decoder gets trained properly.
+            dist = torch.distributions.Categorical(probs=pattern_probs)
+            sampled_patterns = dist.sample() # Shape: [batch_size, grid_size, grid_size]
+
+            # --- DETAILED COMMENT ON TRADEOFFS AND IMPROVEMENT ---
+            # Tradeoffs of this Simple Sampling Approach:
+            #   (+) Simplicity: Easy to implement using existing Categorical sampling.
+            #   (-) Gradient Flow Blocked: The biggest issue. The `sample()` operation breaks the gradient
+            #       path from the decoder loss back to the encoder parameters. This means the encoder
+            #       isn't directly learning to produce patterns that *minimize the decoder's reconstruction error*.
+            #       It might learn something implicitly, but it's not efficient or theoretically sound.
+            #   (-) Variance: Sampling introduces variance into the decoder's input during training.
+            #
+            # TODO: Implement a Differentiable Sampling Strategy
+            #   Replace the `dist.sample()` step with a technique that allows gradient propagation.
+            #   The standard method is the Gumbel-Softmax trick (also known as Concrete distribution):
+            #
+            #   Example using Gumbel-Softmax:
+            #   ```python
+            #   # Inside encoder forward pass, get logits BEFORE softmax:
+            #   # logits = self.fc3(x).view(batch_size, self.grid_size, self.grid_size, self.num_colors)
+            #
+            #   # In train_step, use gumbel_softmax:
+            #   # Note: Requires logits from encoder, not probabilities. Encoder needs slight modification.
+            #   # tau is a temperature parameter, often annealed from a high value to a low value.
+            #   # hard=True makes the output one-hot like, but gradients flow as if it were soft.
+            #   # patterns_for_decoder = F.gumbel_softmax(encoder_logits, tau=1.0, hard=True, dim=-1)
+            #   # # The output shape is [batch_size, grid_size, grid_size, num_colors]
+            #   # # The LearnableDecoder needs to accept this shape directly (which it currently does).
+            #   ```
+            #   Using Gumbel-Softmax ensures the encoder is trained effectively by the reconstruction loss signal
+            #   propagated back from the decoder. This is the recommended approach for future improvement.
+            # --- END OF DETAILED COMMENT ---
+
+
+            # 4. Decode Sampled Patterns to Token Probabilities
+            # Decoder takes [batch, grid, grid] or [batch, grid, grid, num_colors]
+            # The current decoder handles [batch, grid, grid] by applying one-hot itself.
+            predicted_token_probs = self.decoder(sampled_patterns) # Shape: [total_tokens_in_batch, vocab_size]
+
+            # 5. Calculate Reconstruction Loss
+            reconstruction_loss = F.cross_entropy(predicted_token_probs, token_ids_tensor)
+            total_loss = reconstruction_loss
+
+            loss_dict["reconstruction_loss"] = reconstruction_loss.item()
+            loss_dict["diffusion_loss"] = 0.0 # No diffusion loss in this stage
+
+
+        # --- Stage 2: Diffusion Training (Original Logic) ---
+        elif self.training_stage == 'diffusion':
+            # 1. Encode Text Batch to Target Patterns (x_0)
+            # For diffusion, we need the 'true' target patterns.
+            # If using DeterministicEncoder, these are fixed.
+            # If using LearnableEncoder, these are the patterns it *currently* produces.
+            # We might want to use the encoder in eval mode and potentially detach patterns
+            # if we are only training the diffusion model on fixed targets.
+            # Let's assume we use the current encoder output as the target x_0.
+            all_patterns_list = []
+            all_token_ids_list = [] # Keep track of original tokens if decoder is learnable
+            with torch.no_grad() if not self.is_encoder_learnable else torch.enable_grad(): # Only track grads if encoder is learnable and *we want to fine-tune it*
+                for text in text_batch:
+                    words = text.lower().split()
+                    token_ids = [self.token_to_id.get(word, self.token_to_id.get("<unk>", 1)) for word in words]
+                    if not token_ids: continue # Skip empty lines
+
+                    if self.is_encoder_learnable:
+                         # Use sampling to get discrete patterns (as done in encode_text)
+                        patterns_np = self.encode_text(text) # Gets numpy array
+                        patterns = torch.tensor(patterns_np, dtype=torch.long, device=self.device)
+                    else:
+                        # Deterministic encoder gives numpy array directly
+                        patterns_np = self.encoder.encode(token_ids)
+                        patterns = torch.tensor(patterns_np, dtype=torch.long, device=self.device)
+
+                    all_patterns_list.append(patterns)
+                    all_token_ids_list.extend(token_ids) # Store corresponding token IDs
+
+            if not all_patterns_list: # Skip if batch resulted in no patterns
+                 return {"total_loss": 0.0}
+
+            # Stack patterns: shape [total_tokens_in_batch, grid_size, grid_size]
+            patterns_tensor = torch.cat(all_patterns_list, dim=0)
+            token_ids_tensor = torch.tensor(all_token_ids_list, dtype=torch.long, device=self.device)
+
+            # 2. Forward pass through diffusion model
+            # Diffusion model's forward now typically takes x_0 and returns predicted x_0 and noise/t
+            # Let's assume diffusion forward does the noising and denoising prediction step:
+            # predicted_probs_or_patterns = self.diffusion(patterns_tensor) # Adapting to AdvancedDiffusion output
+            # Need to adjust based on specific diffusion model forward signature
+
+            # Using the signature from AdvancedDiffusionModel's forward:
+            # It needs patterns (x_0) and optionally timesteps t. It returns predicted *probabilities* for x_0.
+            batch_size = patterns_tensor.shape[0]
+            t = torch.randint(0, self.diffusion.timesteps, (batch_size,), device=self.device)
+            noisy_patterns = self.diffusion.add_noise(patterns_tensor, t) # Need add_noise separate or internal? Assume internal if not present.
+            # Let's assume diffusion.forward takes original patterns and t, returns predicted x_0 probabilities
+            # Need to simulate the typical diffusion training: sample t, noise x_0 -> x_t, predict x_0 from x_t
+            # Reworking based on typical diffusion training loop structure:
+
+            # a. Sample timesteps
+            t = torch.randint(0, self.diffusion.timesteps, (patterns_tensor.shape[0],), device=self.device).long()
+
+            # b. Noise the data to time t (using diffusion's add_noise method)
+            noisy_patterns = self.diffusion.add_noise(patterns_tensor, t) # shape [B, G, G]
+
+            # c. Get the model prediction (predicts probabilities of original patterns x_0)
+            # The Advanced model forward expects patterns and t, let's pass the NOISY patterns and t
+            # to predict the ORIGINAL pattern probabilities.
+            predicted_pattern_probs = self.diffusion(noisy_patterns, t) # shape [B, G, G, C]
+
+            # d. Calculate diffusion loss (compare predicted probs with original patterns)
+            # Target should be the original patterns_tensor
+            # Reshape for cross_entropy: prediction [N, C], target [N]
+            diff_loss = F.cross_entropy(
+                predicted_pattern_probs.reshape(-1, self.num_colors), # [B*G*G, C]
+                patterns_tensor.reshape(-1).long() # [B*G*G]
+            )
+            total_loss += diff_loss
+            loss_dict["diffusion_loss"] = diff_loss.item()
+
+            # 3. Optional: Add Decoder Reconstruction Loss on Diffusion Output
+            # This could help ensure generated patterns are decodable.
+            # We could decode the *predicted* patterns from the diffusion model.
+            if self.is_decoder_learnable:
+                 # Option A: Decode the predicted probabilities (requires decoder to handle probs or sampling)
+                 # Option B: Sample from predicted probabilities and decode samples
+                 # Let's use sampling (again, non-differentiable link here if fine-tuning diffusion model based on this)
+                 predicted_patterns_sampled = torch.distributions.Categorical(probs=predicted_pattern_probs).sample() # [B, G, G]
+                 predicted_token_probs = self.decoder(predicted_patterns_sampled) # [B, vocab_size]
+                 decoder_loss = F.cross_entropy(predicted_token_probs, token_ids_tensor) # Compare with original tokens
+                 # Weight this loss? e.g., total_loss += 0.1 * decoder_loss
+                 # For now, just log it. We could add it to total_loss later.
+                 loss_dict["decoder_loss_from_diffusion"] = decoder_loss.item()
+            else:
+                loss_dict["decoder_loss_from_diffusion"] = 0.0
+
+
+        else:
+            raise ValueError(f"Unknown training stage: {self.training_stage}")
+
+
+        # Backward pass and optimizer step (only if loss is calculated)
+        if total_loss.requires_grad:
+             # Check for NaN/inf gradients before stepping
+             total_loss.backward()
+             # Optional: Gradient clipping
+             # torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0) # Need to define self.parameters() or pass relevant params
+             optimizer.step()
+
+        loss_dict["total_loss"] = total_loss.item()
+        return loss_dict
+
+
+    # --- Other methods (generate, save, load) remain largely the same ---
+    # Note: Generate might need adjustment depending on whether encoder/decoder are learnable
+    # and how conditioning is implemented. Save/load needs to handle the stage? Not necessarily.
+
+    def generate(self, prompt: Optional[str] = None, max_length: int = 10,
+                 temperature: float = 1.0) -> str:
+        """
+        Generate text using the diffusion model.
+        (Note: Conditional generation from prompt is NOT implemented yet)
+
+        Args:
+            prompt: Optional text prompt (currently ignored for generation logic)
+            max_length: Maximum number of *new* tokens to generate
+            temperature: Temperature for sampling (higher = more random)
+
+        Returns:
+            Generated text
+        """
+        # Ensure models are in eval mode
+        initial_modes = {}
+        if self.is_encoder_learnable:
+            initial_modes['encoder'] = self.encoder.training
+            self.encoder.eval()
+        if self.is_decoder_learnable:
+            initial_modes['decoder'] = self.decoder.training
+            self.decoder.eval()
+        initial_modes['diffusion'] = self.diffusion.training
+        self.diffusion.eval()
+
+        generated_tokens = []
+        if prompt:
+            # TODO: Implement actual conditioning based on prompt encoding
+            prompt_tokens = prompt.lower().split()
+            print(f"Prompt received: '{prompt}' (Note: Conditioning not implemented, generating unconditionally)")
+            generated_tokens.extend(prompt_tokens) # Start with prompt tokens for display only
+
+        current_length = 0
+        with torch.no_grad():
+            for _ in range(max_length):
+                # 1. Sample a new pattern from the diffusion model
+                # Diffusion sample method returns discrete patterns [batch_size, grid_size, grid_size]
+                sampled_patterns_tensor = self.diffusion.sample(batch_size=1, device=self.device, temperature=temperature)
+
+                # 2. Decode the pattern to a token
+                # Use decode_patterns which handles both decoder types
+                # Need numpy array for decode_patterns
+                sampled_patterns_np = sampled_patterns_tensor.cpu().numpy()
+                # decode_patterns expects [num_patterns, G, G]
+                decoded_token = self.decode_patterns(sampled_patterns_np)[0] # Decode the single pattern
+
+                # Add to generated tokens
+                generated_tokens.append(decoded_token)
+                current_length += 1
+
+                # Stop if EOS token is generated
+                if decoded_token == "<eos>":
+                    break
+
+        # Restore initial modes
+        if 'encoder' in initial_modes: self.encoder.train(initial_modes['encoder'])
+        if 'decoder' in initial_modes: self.decoder.train(initial_modes['decoder'])
+        if 'diffusion' in initial_modes: self.diffusion.train(initial_modes['diffusion'])
+
+        # Join tokens to form text
+        return " ".join(generated_tokens)
+
+
+    def save(self, path: str) -> None:
+        """
+        Save the model state to disk. Includes component states and config.
+
+        Args:
+            path: Path to save the model
+        """
+        model_state = {
+            "config": {
+                "token_to_id": self.token_to_id,
+                "encoder_type": "learnable" if self.is_encoder_learnable else "deterministic",
+                "diffusion_type": type(self.diffusion).__name__, # Store class name
+                "decoder_type": "learnable" if self.is_decoder_learnable else "deterministic",
+                "num_colors": self.num_colors,
+                "grid_size": self.grid_size,
+                "diffusion_timesteps": getattr(self.diffusion, 'timesteps', None), # Get timesteps if available
+                "hidden_dim": getattr(self.diffusion, 'hidden_dim', None) # Get hidden_dim if available
+            },
+            "diffusion_state": self.diffusion.state_dict(),
+            # Save learnable components only if they exist
+            "encoder_state": self.encoder.state_dict() if self.is_encoder_learnable else None,
+            "decoder_state": self.decoder.state_dict() if self.is_decoder_learnable else None,
+        }
+        torch.save(model_state, path)
+        print(f"Model saved to {path}")
+
+    @classmethod
+    def load(cls, path: str, device: Optional[torch.device] = None) -> 'VisualTokenDiffusionLM':
+        """
+        Load a model from disk.
+
+        Args:
+            path: Path to load the model from
+            device: Device to load the model on
+
+        Returns:
+            Loaded model instance
+        """
+        map_location = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model_state = torch.load(path, map_location=map_location)
+
+        config = model_state["config"]
+
+        # Determine hidden_dim and timesteps (handle potential missing keys for older saves)
+        hidden_dim = config.get('hidden_dim', 256) # Default if missing
+        diffusion_timesteps = config.get('diffusion_timesteps', 20 if 'Simple' in config['diffusion_type'] else 50) # Default based on type
+
+        # Create model instance using saved config
+        model = cls(
+            token_to_id=config["token_to_id"],
+            encoder_type=config["encoder_type"],
+            diffusion_type='simple' if 'Simple' in config['diffusion_type'] else 'advanced', # Map class name back
+            decoder_type=config["decoder_type"],
+            num_colors=config["num_colors"],
+            grid_size=config["grid_size"],
+            diffusion_timesteps=diffusion_timesteps,
+            hidden_dim=hidden_dim,
+            device=map_location,
+            # Load in diffusion stage by default, can be changed later
+            initial_training_stage='diffusion'
+        )
+
+        # Load component states carefully
+        model.diffusion.load_state_dict(model_state["diffusion_state"])
+
+        if model.is_encoder_learnable and model_state["encoder_state"] is not None:
+            model.encoder.load_state_dict(model_state["encoder_state"])
+        elif model.is_encoder_learnable and model_state["encoder_state"] is None:
+            print(f"Warning: Model configured with learnable encoder but no encoder state found in {path}.")
+
+        if model.is_decoder_learnable and model_state["decoder_state"] is not None:
+            model.decoder.load_state_dict(model_state["decoder_state"])
+        elif model.is_decoder_learnable and model_state["decoder_state"] is None:
+             print(f"Warning: Model configured with learnable decoder but no decoder state found in {path}.")
+
+        print(f"Model loaded from {path}")
+        return model
+
+
+
+================================================
+FILE: requirements.txt
+================================================
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.21.0
+matplotlib>=3.5.0
+tqdm>=4.64.0
+scikit-learn>=1.1.0
+pandas>=1.4.0
+tensorboard>=2.10.0
+
+
+================================================
+FILE: sample_data.txt
+================================================
+the quick brown fox jumps over the lazy dog
+hello world this is a test
+machine learning is fascinating
+natural language processing uses deep learning
+transformers changed everything in ai
+attention is all you need
+the cat sat on the mat
+python is a programming language
+neural networks learn from data
+artificial intelligence will change the world
+deep learning requires large datasets
+language models generate text
+computer vision processes images
+data science combines statistics and programming
+software engineering builds reliable systems
+algorithms solve computational problems
+mathematics provides the foundation
+statistics helps us understand data
+probability theory models uncertainty
+optimization finds the best solutions
+the sun rises in the east
+water boils at one hundred degrees
+gravity pulls objects toward earth
+light travels at incredible speed
+atoms are the building blocks
+molecules form chemical compounds
+cells are the basic units of life
+evolution explains biological diversity
+photosynthesis converts light to energy
+respiration releases stored energy
+music brings joy to people
+art expresses human creativity
+literature tells compelling stories
+poetry captures deep emotions
+theater brings stories to life
+cinema combines visual and audio
+dance moves the human body
+painting creates visual beauty
+sculpture shapes three dimensional forms
+photography captures moments in time
+cooking transforms raw ingredients
+food nourishes our bodies
+exercise keeps us healthy
+sleep restores our energy
+friendship provides social connection
+family offers love and support
+education develops our minds
+work gives us purpose
+travel broadens our horizons
+adventure creates memorable experiences
+
+
+================================================
+FILE: sample_val_data.txt
+================================================
+the dog runs in the park
+science explains natural phenomena
+technology improves our lives
+books contain knowledge and wisdom
+music creates emotional experiences
+food provides essential nutrients
+exercise maintains physical health
+learning never stops throughout life
+creativity solves complex problems
+nature displays incredible beauty
+
+
+================================================
+FILE: train.py
+================================================
+# visual_token_diffuser/train.py
+
+"""
+Training script for the Visual Token Diffusion Language Model.
+Supports different training stages: 'reconstruction' (autoencoder) and 'diffusion'.
+"""
+
+import argparse
+import numpy as np
+import torch
+import torch.nn.functional as F
+import torch.optim as optim
+import matplotlib.pyplot as plt
+from typing import List, Dict, Tuple, Optional
+import os
+import json
+import time
+from tqdm import tqdm
+
+# Import our components
+from utils import create_simple_tokenizer, visualize_pattern, visualize_pattern_batch, analyze_pattern_space
+from model import VisualTokenDiffusionLM
+
+
+def load_data(file_path: str) -> List[str]:
+    """
+    Load text data from a file.
+
+    Args:
+        file_path: Path to the text file
+
+    Returns:
+        List of text samples
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        # Strip whitespace and filter empty lines
+        samples = [line.strip() for line in lines if line.strip()]
+        if not samples:
+            print(f"Warning: No non-empty lines found in {file_path}")
+        return samples
+    except FileNotFoundError:
+        print(f"Error: Data file not found at {file_path}")
+        exit(1)
+    except Exception as e:
+        print(f"Error loading data from {file_path}: {e}")
+        exit(1)
+
+
+def create_vocabulary(samples: List[str], max_vocab_size: int = 1000) -> List[str]:
+    """
+    Create a vocabulary from text samples.
+
+    Args:
+        samples: List of text samples
+        max_vocab_size: Maximum vocabulary size
+
+    Returns:
+        List of tokens (words) in the vocabulary
+    """
+    word_counts = {}
+
+    for sample in samples:
+        words = sample.lower().split()
+        for word in words:
+            word_counts[word] = word_counts.get(word, 0) + 1
+
+    # Sort by frequency
+    sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)
+
+    # Take the most frequent words, subtract space for special tokens
+    vocab = [word for word, count in sorted_words[:max_vocab_size - 3]] # Reserve space for <pad>, <unk>, <eos>
+
+    return vocab
+
+
+def create_batches(samples: List[str], batch_size: int) -> List[List[str]]:
+    """
+    Create batches from text samples. Handles potential empty list.
+
+    Args:
+        samples: List of text samples
+        batch_size: Batch size
+
+    Returns:
+        List of batches
+    """
+    if not samples:
+        return []
+    # Shuffle samples
+    indices = np.random.permutation(len(samples))
+
+    # Create batches
+    batches = []
+    for i in range(0, len(indices), batch_size):
+        batch_indices = indices[i:i+batch_size]
+        batch = [samples[idx] for idx in batch_indices]
+        batches.append(batch)
+
+    return batches
+
+
+def train(model: VisualTokenDiffusionLM,
+          training_stage: str, # ADDED: Explicitly pass the stage
+          train_samples: List[str],
+          val_samples: List[str],
+          batch_size: int = 32,
+          num_epochs: int = 10,
+          learning_rate: float = 0.001,
+          save_dir: str = "checkpoints",
+          log_interval: int = 10,
+          load_checkpoint_path: Optional[str] = None, # ADDED: Path to load previous state
+          fine_tune_autoencoder: bool = False): # ADDED: Option to fine-tune AE during diffusion stage
+    """
+    Train the Visual Token Diffusion LM for a specific stage.
+
+    Args:
+        model: VisualTokenDiffusionLM instance, initialized for the correct stage.
+        training_stage: The stage to run ('reconstruction' or 'diffusion').
+        train_samples: Training samples.
+        val_samples: Validation samples.
+        batch_size: Batch size.
+        num_epochs: Number of training epochs for this stage.
+        learning_rate: Learning rate.
+        save_dir: Directory to save checkpoints and logs for this stage.
+        log_interval: Interval (in batches) to log training progress.
+        load_checkpoint_path: Path to a checkpoint to load weights from (e.g., AE weights for diffusion stage).
+        fine_tune_autoencoder: If True and stage is 'diffusion', include AE params in optimizer.
+    """
+    print(f"--- Starting Training Stage: {training_stage.upper()} ---")
+
+    # --- 1. Configure Optimizer based on Stage ---
+    params_to_optimize = []
+    if training_stage == 'reconstruction':
+        if not model.is_encoder_learnable or not model.is_decoder_learnable:
+             raise ValueError("Reconstruction stage requires LearnableEncoder and LearnableDecoder.")
+        print("Optimizer: Training Encoder and Decoder.")
+        params_to_optimize.extend(model.encoder.parameters())
+        params_to_optimize.extend(model.decoder.parameters())
+    elif training_stage == 'diffusion':
+        print("Optimizer: Training Diffusion Model.")
+        params_to_optimize.extend(model.diffusion.parameters())
+        if fine_tune_autoencoder:
+            if model.is_encoder_learnable:
+                print("Optimizer: Fine-tuning Encoder.")
+                params_to_optimize.extend(model.encoder.parameters())
+            if model.is_decoder_learnable:
+                 print("Optimizer: Fine-tuning Decoder.")
+                 params_to_optimize.extend(model.decoder.parameters())
+    else:
+        raise ValueError(f"Unknown training stage: {training_stage}")
+
+    if not params_to_optimize:
+        print("Warning: No parameters selected for optimization in this stage. Check model configuration.")
+        return # Nothing to train
+
+    optimizer = optim.Adam(params_to_optimize, lr=learning_rate)
+
+    # --- 2. Load Pre-trained Weights if specified ---
+    # This is typically used to load AE weights when starting the diffusion stage.
+    if load_checkpoint_path:
+        if os.path.exists(load_checkpoint_path):
+            print(f"Loading weights from checkpoint: {load_checkpoint_path}")
+            try:
+                # Use the model's load method, but we only care about the state dicts here
+                # We need to load selectively based on the current stage's needs
+                map_location = model.device
+                loaded_state = torch.load(load_checkpoint_path, map_location=map_location)
+
+                # Load diffusion state if present and relevant
+                if 'diffusion_state' in loaded_state and training_stage == 'diffusion':
+                     model.diffusion.load_state_dict(loaded_state['diffusion_state'])
+                     print("  - Loaded Diffusion state.")
+
+                # Load encoder state if learnable and present
+                if model.is_encoder_learnable and loaded_state.get('encoder_state') is not None:
+                    model.encoder.load_state_dict(loaded_state['encoder_state'])
+                    print("  - Loaded Encoder state.")
+                elif model.is_encoder_learnable:
+                     print(f"  - Warning: Learnable encoder expected but no state found in {load_checkpoint_path}.")
+
+                # Load decoder state if learnable and present
+                if model.is_decoder_learnable and loaded_state.get('decoder_state') is not None:
+                    model.decoder.load_state_dict(loaded_state['decoder_state'])
+                    print("  - Loaded Decoder state.")
+                elif model.is_decoder_learnable:
+                     print(f"  - Warning: Learnable decoder expected but no state found in {load_checkpoint_path}.")
+
+            except Exception as e:
+                print(f"Error loading checkpoint from {load_checkpoint_path}: {e}")
+                print("Continuing with initial weights.")
+        else:
+            print(f"Warning: Checkpoint path specified but not found: {load_checkpoint_path}")
+
+    # --- 3. Prepare Save Directory and Logging ---
+    stage_save_dir = os.path.join(save_dir, training_stage)
+    os.makedirs(stage_save_dir, exist_ok=True)
+    print(f"Checkpoints and logs for this stage will be saved in: {stage_save_dir}")
+
+    # --- 4. Training Loop ---
+    all_losses = []
+    best_val_loss = float('inf') # Simple validation metric
+
+    for epoch in range(num_epochs):
+        print(f"\nEpoch {epoch+1}/{num_epochs} [{training_stage.upper()}]")
+
+        # Create batches
+        batches = create_batches(train_samples, batch_size)
+        if not batches:
+            print("Warning: No training batches created. Check data.")
+            continue
+
+        # Set models to appropriate train mode (handled within model.train_step now)
+        epoch_losses = []
+
+        # Training iterations
+        pbar = tqdm(batches, desc=f"Epoch {epoch+1} Training")
+        for i, batch in enumerate(pbar):
+            # Perform training step (model internally uses self.training_stage)
+            losses = model.train_step(batch, optimizer)
+            epoch_losses.append(losses)
+
+            # Log progress
+            if (i + 1) % log_interval == 0 or i == len(batches) - 1:
+                avg_loss = np.mean([l.get("total_loss", 0) for l in epoch_losses[-log_interval:]])
+                pbar.set_postfix({"Avg Loss": f"{avg_loss:.4f}"})
+
+        # Calculate average epoch loss
+        avg_epoch_loss = np.mean([l.get("total_loss", 0) for l in epoch_losses])
+        print(f"  Epoch {epoch+1} Training Completed. Avg Loss: {avg_epoch_loss:.4f}")
+
+        # --- 5. Validation ---
+        print("  Running Validation...")
+        model.diffusion.eval() # Set diffusion to eval mode
+        if model.is_encoder_learnable: model.encoder.eval()
+        if model.is_decoder_learnable: model.decoder.eval()
+
+        val_batches = create_batches(val_samples, batch_size)
+        total_val_loss = 0
+        num_val_tokens = 0
+        correct_reconstructions = 0 # For reconstruction stage
+
+        with torch.no_grad():
+            for val_batch in tqdm(val_batches, desc="Validation", leave=False):
+                if not val_batch: continue
+
+                # --- Validation Logic specific to Stage ---
+                if training_stage == 'reconstruction':
+                    token_ids_tensor = model._get_token_ids_from_text_batch(val_batch)
+                    if token_ids_tensor.numel() == 0: continue
+
+                    pattern_probs = model.encoder(token_ids_tensor)
+                    # Use simple sampling for validation consistency with train_step (or argmax if preferred)
+                    sampled_patterns = torch.distributions.Categorical(probs=pattern_probs).sample()
+                    # Alternative: use argmax for deterministic validation
+                    # sampled_patterns = torch.argmax(pattern_probs, dim=-1)
+
+                    predicted_token_probs = model.decoder(sampled_patterns)
+                    val_loss = F.cross_entropy(predicted_token_probs, token_ids_tensor, reduction='sum')
+                    total_val_loss += val_loss.item()
+                    num_val_tokens += token_ids_tensor.numel()
+
+                    # Calculate reconstruction accuracy
+                    predicted_token_ids = torch.argmax(predicted_token_probs, dim=-1)
+                    correct_reconstructions += (predicted_token_ids == token_ids_tensor).sum().item()
+
+                elif training_stage == 'diffusion':
+                    # Get target patterns
+                    all_patterns_list = []
+                    for text in val_batch:
+                         patterns_np = model.encode_text(text) # Uses encoder in eval mode
+                         patterns = torch.tensor(patterns_np, dtype=torch.long, device=model.device)
+                         all_patterns_list.append(patterns)
+                    if not all_patterns_list: continue
+                    patterns_tensor = torch.cat(all_patterns_list, dim=0)
+
+                    # Calculate diffusion loss (average over random timesteps)
+                    # Simulating multiple timesteps for a more stable validation loss
+                    val_diff_loss_sum = 0
+                    num_t_samples = 5 # Sample a few timesteps per batch item for validation
+                    for _ in range(num_t_samples):
+                         t = torch.randint(0, model.diffusion.timesteps, (patterns_tensor.shape[0],), device=model.device).long()
+                         noisy_patterns = model.diffusion.add_noise(patterns_tensor, t)
+                         predicted_pattern_probs = model.diffusion(noisy_patterns, t) # Diffusion model is already in eval mode
+                         val_diff_loss = F.cross_entropy(
+                             predicted_pattern_probs.reshape(-1, model.num_colors),
+                             patterns_tensor.reshape(-1).long(),
+                             reduction='sum'
+                         )
+                         val_diff_loss_sum += val_diff_loss.item()
+
+                    total_val_loss += (val_diff_loss_sum / num_t_samples) # Average loss across t samples
+                    num_val_tokens += patterns_tensor.numel() # Count total pattern cells validated
+
+            # Calculate average validation loss
+            avg_val_loss = total_val_loss / num_val_tokens if num_val_tokens > 0 else 0
+            print(f"  Validation Loss: {avg_val_loss:.4f}")
+            if training_stage == 'reconstruction' and num_val_tokens > 0:
+                 recon_accuracy = correct_reconstructions / num_val_tokens
+                 print(f"  Reconstruction Accuracy: {recon_accuracy:.4f}")
+
+        # --- 6. Save Checkpoint (Best and Last) ---
+        # Save based on validation loss improvement
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            best_save_path = os.path.join(stage_save_dir, f"model_best.pt")
+            model.save(best_save_path)
+            print(f"  New best validation loss. Model saved to {best_save_path}")
+
+        # Save last epoch checkpoint
+        last_save_path = os.path.join(stage_save_dir, f"model_epoch_{epoch+1}.pt")
+        model.save(last_save_path)
+        print(f"  Epoch {epoch+1} checkpoint saved to {last_save_path}")
+
+        # Append epoch losses to overall history
+        all_losses.extend(epoch_losses)
+
+
+    # --- 7. Save Final Loss History for the Stage ---
+    # Restructure loss history slightly
+    loss_history = {}
+    if all_losses:
+        keys = all_losses[0].keys()
+        for key in keys:
+            loss_history[key] = [l.get(key, 0) for l in all_losses] # Collect losses for each key
+
+        loss_hist_path = os.path.join(stage_save_dir, "loss_history.json")
+        try:
+            with open(loss_hist_path, "w") as f:
+                json.dump(loss_history, f, indent=2)
+            print(f"Loss history saved to {loss_hist_path}")
+        except Exception as e:
+             print(f"Error saving loss history: {e}")
+
+        # Plot loss for the stage
+        plot_path = os.path.join(stage_save_dir, "loss_plot.png")
+        try:
+            plt.figure(figsize=(12, 6))
+            for key, values in loss_history.items():
+                 # Only plot if there are non-zero values
+                 if any(v != 0 for v in values):
+                     plt.plot(values, label=key.replace('_', ' ').title())
+            plt.xlabel("Batch Step")
+            plt.ylabel("Loss")
+            plt.title(f"Training Loss ({training_stage.title()} Stage)")
+            plt.legend()
+            plt.grid(True)
+            plt.savefig(plot_path)
+            plt.close()
+            print(f"Loss plot saved to {plot_path}")
+        except Exception as e:
+            print(f"Error plotting losses: {e}")
+
+    print(f"--- Training Stage {training_stage.upper()} Completed ---")
+
+
+def main():
+    """Main function to parse arguments and run the training script."""
+    parser = argparse.ArgumentParser(description="Train a Visual Token Diffusion Language Model")
+
+    # Data and Vocab
+    parser.add_argument("--data", type=str, required=True, help="Path to training data file (.txt)")
+    parser.add_argument("--val_data", type=str, help="Path to validation data file (.txt). If not provided, uses 10% of training data.")
+    parser.add_argument("--vocab_size", type=int, default=1000, help="Maximum vocabulary size.")
+
+    # Model Configuration
+    parser.add_argument("--encoder_type", type=str, default="deterministic",
+                        choices=["deterministic", "learnable"], help="Type of encoder.")
+    parser.add_argument("--diffusion_type", type=str, default="simple",
+                        choices=["simple", "advanced"], help="Type of diffusion model.")
+    parser.add_argument("--decoder_type", type=str, default="deterministic",
+                        choices=["deterministic", "learnable"], help="Type of decoder.")
+    parser.add_argument("--hidden_dim", type=int, default=256, help="Hidden dimension size for learnable components.")
+    parser.add_argument("--diffusion_timesteps", type=int, default=50, help="Number of timesteps for diffusion.")
+    # Grid size and num colors could be args too, but keeping fixed for simplicity now
+
+    # Training Control
+    parser.add_argument("--stage", type=str, default="diffusion", required=True,
+                        choices=["reconstruction", "diffusion"], help="Specify the training stage to run.")
+    parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
+    parser.add_argument("--num_epochs", type=int, default=10, help="Number of training epochs for the specified stage.")
+    parser.add_argument("--learning_rate", type=float, default=0.001, help="Learning rate.")
+    parser.add_argument("--save_dir", type=str, default="checkpoints", help="Base directory to save checkpoints and logs.")
+    parser.add_argument("--log_interval", type=int, default=20, help="Log training progress every N batches.")
+    parser.add_argument("--load_checkpoint", type=str, default=None,
+                        help="Path to a checkpoint (.pt file) to load weights from before starting training (e.g., load AE weights for diffusion stage).")
+    parser.add_argument("--fine_tune_autoencoder", action="store_true",
+                        help="If set, allows fine-tuning of encoder/decoder during the diffusion stage (only applies if --stage diffusion and encoder/decoder are learnable).")
+    parser.add_argument("--no_cuda", action="store_true", help="Disable CUDA even if available.")
+
+    args = parser.parse_args()
+
+    # Validate args
+    if args.stage == "reconstruction" and (args.encoder_type != "learnable" or args.decoder_type != "learnable"):
+         parser.error("--stage reconstruction requires --encoder_type learnable and --decoder_type learnable.")
+    if args.fine_tune_autoencoder and args.stage != "diffusion":
+        parser.error("--fine_tune_autoencoder only applies when --stage is diffusion.")
+
+    # Set device
+    use_cuda = not args.no_cuda and torch.cuda.is_available()
+    device = torch.device("cuda" if use_cuda else "cpu")
+    print(f"Using device: {device}")
+
+    # Load data
+    print("Loading data...")
+    train_samples = load_data(args.data)
+    if args.val_data:
+        val_samples = load_data(args.val_data)
+    else:
+        print("No validation data provided, using 10% of training data for validation.")
+        split_idx = int(0.9 * len(train_samples))
+        if split_idx == 0 and len(train_samples) > 0: split_idx = 1 # Ensure at least one val sample if possible
+        val_samples = train_samples[split_idx:]
+        train_samples = train_samples[:split_idx]
+
+    if not train_samples:
+        print("Error: No training samples loaded. Exiting.")
+        exit(1)
+    print(f"Loaded {len(train_samples)} training samples and {len(val_samples)} validation samples.")
+
+    # Create vocabulary
+    print("Creating vocabulary...")
+    vocab = create_vocabulary(train_samples, args.vocab_size)
+    token_to_id = create_simple_tokenizer(vocab)
+    actual_vocab_size = len(token_to_id)
+    print(f"Created vocabulary with {actual_vocab_size} tokens (including special tokens).")
+
+    # Create model instance for the specified stage
+    print(f"Creating model for stage: {args.stage}...")
+    # Pass the selected stage to the model constructor
+    model = VisualTokenDiffusionLM(
+        token_to_id=token_to_id,
+        encoder_type=args.encoder_type,
+        diffusion_type=args.diffusion_type,
+        decoder_type=args.decoder_type,
+        hidden_dim=args.hidden_dim,
+        diffusion_timesteps=args.diffusion_timesteps,
+        device=device,
+        initial_training_stage=args.stage # Set the stage here
+    )
+
+    # Train model for the specified stage
+    print(f"Starting training for stage: {args.stage}...")
+    train(
+        model=model,
+        training_stage=args.stage, # Pass stage to train function
+        train_samples=train_samples,
+        val_samples=val_samples,
+        batch_size=args.batch_size,
+        num_epochs=args.num_epochs,
+        learning_rate=args.learning_rate,
+        save_dir=args.save_dir,
+        log_interval=args.log_interval,
+        load_checkpoint_path=args.load_checkpoint, # Pass loading path
+        fine_tune_autoencoder=args.fine_tune_autoencoder # Pass fine-tuning flag
+    )
+
+    print("\nTraining script finished.")
+
+
+if __name__ == "__main__":
+    main()
+
+
+
+================================================
+FILE: updates28apr.md
+================================================
+**project will be runnable now, hopefully**
+
+1.  **Dependencies:** You need to have the conda environment (`environment.yml`) or pip requirements installed.
+2.  **Data:** You need a text file specified via the `--data` argument (e.g., `text_data.txt`).
+3.  **Execution:** You can now run specific stages:
+    *   **To train the autoencoder (requires learnable encoder/decoder):**
+        ```bash
+        python train.py --data your_data.txt --stage reconstruction --encoder_type learnable --decoder_type learnable --vocab_size 500 --num_epochs 20 --save_dir checkpoints_ae
+        ```
+    *   **To train the diffusion model (loading pre-trained AE):**
+        ```bash
+        # Assuming the AE checkpoint is saved at checkpoints_ae/reconstruction/model_best.pt
+        python train.py --data your_data.txt --stage diffusion --encoder_type learnable --decoder_type learnable --diffusion_type advanced --load_checkpoint checkpoints_ae/reconstruction/model_best.pt --num_epochs 50 --save_dir checkpoints_diffusion
+        ```
+    *   **To train diffusion with a deterministic setup (no pre-training needed):**
+        ```bash
+        python train.py --data your_data.txt --stage diffusion --encoder_type deterministic --decoder_type deterministic --diffusion_type simple --num_epochs 30 --save_dir checkpoints_det_simple
+        ```
+4.  **Gradient Issue (Reminder):** The `reconstruction` stage still uses the simple sampling method, which means the **encoder won't train effectively** due to the lack of gradient flow. The decoder *will* train. To make the encoder train properly in this stage, the **Gumbel-Softmax** change (discussed in the TODO comment in `model.py`) is still necessary. However, the *code structure* is now in place to run these stages separately.
+
+The script will *run* and execute the selected stage's logic. The *effectiveness* of the 'reconstruction' stage for training the encoder is limited until the sampling method is improved. The 'diffusion' stage should train correctly based on the targets provided by the (potentially fixed or pre-trained) encoder.
+
+
+
+================================================
+FILE: utils.py
+================================================
+"""
+Utility functions for the Visual Token Diffusion Language Model.
+Includes visualization, token handling, and data processing utilities.
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+from typing import List, Dict, Tuple, Optional
+import torch
+import torch.nn.functional as F
+
+
+def visualize_pattern(pattern: np.ndarray, title: Optional[str] = None) -> None:
+    """
+    Visualize a 5x5 pattern with 3 possible colors.
+    
+    Args:
+        pattern: 5x5 numpy array with values in [0, 1, 2]
+        title: Optional title for the plot
+    """
+    # Map the values to colors: 0->white, 1->blue, 2->red
+    cmap = plt.cm.colors.ListedColormap(['white', 'blue', 'red'])
+    bounds = [-0.5, 0.5, 1.5, 2.5]
+    norm = plt.cm.colors.BoundaryNorm(bounds, cmap.N)
+    
+    plt.figure(figsize=(5, 5))
+    plt.imshow(pattern, cmap=cmap, norm=norm)
+    plt.grid(True, which='both', color='black', linewidth=1.5)
+    
+    # Add the numeric values in each cell
+    for i in range(5):
+        for j in range(5):
+            plt.text(j, i, str(int(pattern[i, j])), 
+                    ha="center", va="center", color="black", fontweight='bold')
+    
+    if title:
+        plt.title(title)
+    plt.tight_layout()
+    plt.show()
+
+
+def visualize_pattern_batch(patterns: np.ndarray, tokens: List[str] = None, max_display: int = 10) -> None:
+    """
+    Visualize a batch of 5x5 patterns.
+    
+    Args:
+        patterns: Batch of 5x5 patterns, shape [batch_size, 5, 5]
+        tokens: Optional list of tokens corresponding to the patterns
+        max_display: Maximum number of patterns to display
+    """
+    batch_size = min(len(patterns), max_display)
+    rows = (batch_size + 4) // 5  # Ceiling division to determine number of rows
+    
+    cmap = plt.cm.colors.ListedColormap(['white', 'blue', 'red'])
+    bounds = [-0.5, 0.5, 1.5, 2.5]
+    norm = plt.cm.colors.BoundaryNorm(bounds, cmap.N)
+    
+    plt.figure(figsize=(15, 3 * rows))
+    for i in range(batch_size):
+        plt.subplot(rows, 5, i + 1)
+        plt.imshow(patterns[i], cmap=cmap, norm=norm)
+        plt.grid(True, which='both', color='black', linewidth=1.5)
+        
+        if tokens:
+            plt.title(tokens[i])
+    
+    plt.tight_layout()
+    plt.show()
+
+
+def encode_text(text: str, tokenizer: Dict[str, int]) -> List[int]:
+    """
+    Encode text into a list of token IDs.
+    
+    Args:
+        text: Input text
+        tokenizer: Dictionary mapping tokens to their IDs
+    
+    Returns:
+        List of token IDs
+    """
+    # Simple word-level tokenization for prototype
+    words = text.lower().split()
+    token_ids = []
+    
+    for word in words:
+        if word in tokenizer:
+            token_ids.append(tokenizer[word])
+        else:
+            # Handle unknown tokens - for now we'll use a designated OOV token
+            token_ids.append(tokenizer.get("<unk>", 0))
+    
+    return token_ids
+
+
+def create_simple_tokenizer(vocab: List[str]) -> Dict[str, int]:
+    """
+    Create a simple word-level tokenizer.
+    
+    Args:
+        vocab: List of words to include in the vocabulary
+    
+    Returns:
+        Dictionary mapping tokens to their IDs
+    """
+    # Add special tokens
+    special_tokens = ["<pad>", "<unk>", "<eos>"]
+    all_tokens = special_tokens + vocab
+    
+    # Create token to ID mapping
+    token_to_id = {token: idx for idx, token in enumerate(all_tokens)}
+    
+    return token_to_id
+
+
+def hamming_distance(pattern1: np.ndarray, pattern2: np.ndarray) -> int:
+    """
+    Compute the Hamming distance between two patterns.
+    
+    Args:
+        pattern1: First pattern
+        pattern2: Second pattern
+    
+    Returns:
+        Hamming distance (number of positions where patterns differ)
+    """
+    return np.sum(pattern1 != pattern2)
+
+
+def pattern_similarity(pattern1: np.ndarray, pattern2: np.ndarray) -> float:
+    """
+    Compute a similarity score between two patterns.
+    
+    Args:
+        pattern1: First pattern
+        pattern2: Second pattern
+    
+    Returns:
+        Similarity score in [0, 1], where 1 means identical patterns
+    """
+    total_positions = pattern1.size
+    matching_positions = np.sum(pattern1 == pattern2)
+    return matching_positions / total_positions
+
+
+def cosine_similarity_batch(patterns1: torch.Tensor, patterns2: torch.Tensor) -> torch.Tensor:
+    """
+    Compute cosine similarity between batches of patterns.
+    
+    Args:
+        patterns1: First batch of patterns, shape [batch_size, 5, 5]
+        patterns2: Second batch of patterns, shape [batch_size, 5, 5]
+    
+    Returns:
+        Tensor of cosine similarities, shape [batch_size]
+    """
+    # Reshape to [batch_size, 25]
+    batch_size = patterns1.shape[0]
+    flat1 = patterns1.reshape(batch_size, -1)
+    flat2 = patterns2.reshape(batch_size, -1)
+    
+    # Compute cosine similarity
+    return F.cosine_similarity(flat1, flat2, dim=1)
+
+
+def compute_entropy(pattern: np.ndarray) -> float:
+    """
+    Compute the entropy of a pattern.
+    
+    Args:
+        pattern: 5x5 pattern with values in [0, 1, 2]
+    
+    Returns:
+        Entropy value
+    """
+    # Count occurrences of each value
+    values, counts = np.unique(pattern, return_counts=True)
+    probabilities = counts / np.sum(counts)
+    
+    # Compute entropy
+    entropy = -np.sum(probabilities * np.log2(probabilities))
+    return entropy
+
+
+# Sample function for creating pattern space statistics
+def analyze_pattern_space(patterns: List[np.ndarray]) -> Dict:
+    """
+    Analyze various statistics about the pattern space.
+    
+    Args:
+        patterns: List of 5x5 patterns
+    
+    Returns:
+        Dictionary of statistics
+    """
+    stats = {}
+    
+    # Compute average entropy
+    entropies = [compute_entropy(p) for p in patterns]
+    stats['avg_entropy'] = np.mean(entropies)
+    stats['min_entropy'] = np.min(entropies)
+    stats['max_entropy'] = np.max(entropies)
+    
+    # Compute pairwise Hamming distances
+    distances = []
+    for i in range(len(patterns)):
+        for j in range(i+1, len(patterns)):
+            distances.append(hamming_distance(patterns[i], patterns[j]))
+    
+    if distances:
+        stats['avg_distance'] = np.mean(distances)
+        stats['min_distance'] = np.min(distances)
+        stats['max_distance'] = np.max(distances)
+    
+    # Analyze color distribution
+    all_patterns = np.vstack([p.flatten() for p in patterns])
+    color_counts = np.bincount(all_patterns.astype(int), minlength=3)
+    stats['color_distribution'] = color_counts / np.sum(color_counts)
+    
+    return stats
+
+
+================================================
+FILE: checkpoints/diffusion/loss_history.json
+================================================
+{
+  "diffusion_loss": [
+    1.0987879037857056,
+    1.0986328125,
+    1.0985223054885864,
+    1.0990391969680786,
+    1.097543478012085,
+    1.0986276865005493,
+    1.0983939170837402,
+    1.0972574949264526,
+    1.0977985858917236,
+    1.0968477725982666,
+    1.0966395139694214,
+    1.0956792831420898,
+    1.096693754196167,
+    1.0953141450881958,
+    1.0959888696670532,
+    1.0958633422851562,
+    1.095980167388916,
+    1.0965185165405273,
+    1.0953139066696167,
+    1.0952955484390259
+  ],
+  "decoder_loss_from_diffusion": [
+    5.257499694824219,
+    5.257501125335693,
+    5.257478713989258,
+    5.2575273513793945,
+    5.257495880126953,
+    5.257500648498535,
+    5.257495880126953,
+    5.2574920654296875,
+    5.257483959197998,
+    5.257534980773926,
+    5.257497787475586,
+    5.257491111755371,
+    5.2574896812438965,
+    5.2575225830078125,
+    5.257508754730225,
+    5.257472038269043,
+    5.257498741149902,
+    5.257483959197998,
+    5.2574872970581055,
+    5.257491111755371
+  ],
+  "total_loss": [
+    1.0987879037857056,
+    1.0986328125,
+    1.0985223054885864,
+    1.0990391969680786,
+    1.097543478012085,
+    1.0986276865005493,
+    1.0983939170837402,
+    1.0972574949264526,
+    1.0977985858917236,
+    1.0968477725982666,
+    1.0966395139694214,
+    1.0956792831420898,
+    1.096693754196167,
+    1.0953141450881958,
+    1.0959888696670532,
+    1.0958633422851562,
+    1.095980167388916,
+    1.0965185165405273,
+    1.0953139066696167,
+    1.0952955484390259
+  ]
+}
+
+
+================================================
+FILE: checkpoints/diffusion/model_best.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/diffusion/model_epoch_1.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/diffusion/model_epoch_10.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/diffusion/model_epoch_2.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/diffusion/model_epoch_3.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/diffusion/model_epoch_4.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/diffusion/model_epoch_5.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/diffusion/model_epoch_6.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/diffusion/model_epoch_7.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/diffusion/model_epoch_8.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/diffusion/model_epoch_9.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/reconstruction/loss_history.json
+================================================
+{
+  "reconstruction_loss": [
+    5.257491111755371,
+    5.2575249671936035,
+    5.257454872131348,
+    5.257460117340088,
+    5.257436275482178,
+    5.257338523864746,
+    5.257225513458252,
+    5.257342338562012,
+    5.25675630569458,
+    5.256636142730713,
+    5.254543781280518,
+    5.252991676330566,
+    5.2340497970581055,
+    5.252025127410889,
+    5.2269110679626465,
+    5.20313835144043,
+    5.22617244720459,
+    5.20120096206665,
+    5.22065544128418,
+    5.209587574005127
+  ],
+  "diffusion_loss": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "total_loss": [
+    5.257491111755371,
+    5.2575249671936035,
+    5.257454872131348,
+    5.257460117340088,
+    5.257436275482178,
+    5.257338523864746,
+    5.257225513458252,
+    5.257342338562012,
+    5.25675630569458,
+    5.256636142730713,
+    5.254543781280518,
+    5.252991676330566,
+    5.2340497970581055,
+    5.252025127410889,
+    5.2269110679626465,
+    5.20313835144043,
+    5.22617244720459,
+    5.20120096206665,
+    5.22065544128418,
+    5.209587574005127
+  ]
+}
+
+
+================================================
+FILE: checkpoints/reconstruction/model_best.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/reconstruction/model_epoch_1.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/reconstruction/model_epoch_10.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/reconstruction/model_epoch_2.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/reconstruction/model_epoch_3.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/reconstruction/model_epoch_4.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/reconstruction/model_epoch_5.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/reconstruction/model_epoch_6.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/reconstruction/model_epoch_7.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/reconstruction/model_epoch_8.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: checkpoints/reconstruction/model_epoch_9.pt
+================================================
+[Non-text file]
+
+
+================================================
+FILE: .claude/settings.local.json
+================================================
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout:*)"
+    ],
+    "deny": []
+  }
+}
+

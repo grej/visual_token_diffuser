@@ -75,6 +75,25 @@ def create_vocabulary(samples: List[str], max_vocab_size: int = 1000) -> List[st
     return vocab
 
 
+def get_temperature(epoch: int, num_epochs: int, start_temp: float = 5.0, end_temp: float = 0.5) -> float:
+    """
+    Calculate Gumbel-Softmax temperature with annealing schedule.
+    
+    Args:
+        epoch: Current epoch (0-indexed)
+        num_epochs: Total number of epochs
+        start_temp: Starting temperature (higher = more uniform)
+        end_temp: Ending temperature (lower = more focused)
+        
+    Returns:
+        Current temperature value
+    """
+    if num_epochs <= 1:
+        return start_temp
+    progress = epoch / (num_epochs - 1)
+    return start_temp * (end_temp / start_temp) ** progress
+
+
 def create_batches(samples: List[str], batch_size: int) -> List[List[str]]:
     """
     Create batches from text samples. Handles potential empty list.
@@ -218,7 +237,7 @@ def train(model: VisualTokenDiffusionLM,
         pbar = tqdm(batches, desc=f"Epoch {epoch+1} Training")
         for i, batch in enumerate(pbar):
             # Perform training step (model internally uses self.training_stage)
-            losses = model.train_step(batch, optimizer)
+            losses = model.train_step(batch, optimizer, epoch=epoch, num_epochs=num_epochs)
             epoch_losses.append(losses)
 
             # Log progress

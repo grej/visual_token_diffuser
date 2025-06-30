@@ -200,17 +200,25 @@ class VisualTokenDiffusionLM:
 
         return " ".join(tokens)
 
-    def train_step(self, text_batch: List[str], optimizer) -> Dict[str, float]:
+    def train_step(self, text_batch: List[str], optimizer, epoch: int = 0, num_epochs: int = 10) -> Dict[str, float]:
         """
         Perform a single training step based on the current training stage.
 
         Args:
             text_batch: Batch of text samples
             optimizer: PyTorch optimizer (assumed to be configured for the current stage)
+            epoch: Current epoch for temperature annealing
+            num_epochs: Total epochs for temperature annealing
 
         Returns:
             Dictionary of loss values for logging
         """
+        def get_gumbel_temperature(epoch: int, num_epochs: int, start_temp: float = 5.0, end_temp: float = 0.5) -> float:
+            """Calculate Gumbel-Softmax temperature with annealing schedule."""
+            if num_epochs <= 1:
+                return start_temp
+            progress = epoch / (num_epochs - 1)
+            return start_temp * (end_temp / start_temp) ** progress
         # Make sure models are in training mode
         if self.is_encoder_learnable: self.encoder.train()
         if self.is_decoder_learnable: self.decoder.train()
@@ -230,48 +238,17 @@ class VisualTokenDiffusionLM:
             if token_ids_tensor.numel() == 0: # Skip empty batches
                 return {"total_loss": 0.0}
 
-            # 2. Encode Tokens to Pattern Probabilities
-            # Encoder forward returns probabilities: [batch_size, grid_size, grid_size, num_colors]
-            pattern_probs = self.encoder(token_ids_tensor)
-
-            # --- Simple Approach: Sampling (Issue: Non-differentiable) ---
-            # 3. Sample Discrete Patterns from Probabilities
-            # This uses torch.distributions.Categorical(...).sample(), which is non-differentiable.
-            # Therefore, gradients from the decoder's loss WILL NOT flow back to the encoder through this step.
-            # The encoder is only trained indirectly if its output probabilities happen to lead to
-            # samples that the decoder can use effectively. The decoder gets trained properly.
-            dist = torch.distributions.Categorical(probs=pattern_probs)
-            sampled_patterns = dist.sample() # Shape: [batch_size, grid_size, grid_size]
-
-            # --- DETAILED COMMENT ON TRADEOFFS AND IMPROVEMENT ---
-            # Tradeoffs of this Simple Sampling Approach:
-            #   (+) Simplicity: Easy to implement using existing Categorical sampling.
-            #   (-) Gradient Flow Blocked: The biggest issue. The `sample()` operation breaks the gradient
-            #       path from the decoder loss back to the encoder parameters. This means the encoder
-            #       isn't directly learning to produce patterns that *minimize the decoder's reconstruction error*.
-            #       It might learn something implicitly, but it's not efficient or theoretically sound.
-            #   (-) Variance: Sampling introduces variance into the decoder's input during training.
-            #
-            # TODO: Implement a Differentiable Sampling Strategy
-            #   Replace the `dist.sample()` step with a technique that allows gradient propagation.
-            #   The standard method is the Gumbel-Softmax trick (also known as Concrete distribution):
-            #
-            #   Example using Gumbel-Softmax:
-            #   ```python
-            #   # Inside encoder forward pass, get logits BEFORE softmax:
-            #   # logits = self.fc3(x).view(batch_size, self.grid_size, self.grid_size, self.num_colors)
-            #
-            #   # In train_step, use gumbel_softmax:
-            #   # Note: Requires logits from encoder, not probabilities. Encoder needs slight modification.
-            #   # tau is a temperature parameter, often annealed from a high value to a low value.
-            #   # hard=True makes the output one-hot like, but gradients flow as if it were soft.
-            #   # patterns_for_decoder = F.gumbel_softmax(encoder_logits, tau=1.0, hard=True, dim=-1)
-            #   # # The output shape is [batch_size, grid_size, grid_size, num_colors]
-            #   # # The LearnableDecoder needs to accept this shape directly (which it currently does).
-            #   ```
-            #   Using Gumbel-Softmax ensures the encoder is trained effectively by the reconstruction loss signal
-            #   propagated back from the decoder. This is the recommended approach for future improvement.
-            # --- END OF DETAILED COMMENT ---
+            # 2. Encode Tokens to Differentiable Patterns using Gumbel-Softmax
+            # Calculate temperature for current epoch (anneals from 5.0 to 0.5)
+            temperature = get_gumbel_temperature(epoch, num_epochs)
+            
+            # Use Gumbel-Softmax for differentiable sampling - this maintains gradient flow!
+            # Shape: [batch_size, grid_size, grid_size, num_colors]
+            pattern_gumbel = self.encoder.forward_gumbel(token_ids_tensor, temperature=temperature)
+            
+            # Convert one-hot patterns to indices for decoder input
+            # Shape: [batch_size, grid_size, grid_size]
+            sampled_patterns = torch.argmax(pattern_gumbel, dim=-1)
 
 
             # 4. Decode Sampled Patterns to Token Probabilities
