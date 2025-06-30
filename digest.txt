@@ -3,15 +3,20 @@ Directory structure:
     ├── README.md
     ├── decoder.py
     ├── diffusion.py
-    ├── encoder-dot-py-suggestions
     ├── encoder.py
     ├── environment-cpu.yml
     ├── environment-gpu.yml
     ├── environment.yml
+    ├── generate.py
     ├── model.py
     ├── requirements.txt
     ├── sample_data.txt
     ├── sample_val_data.txt
+    ├── small_train.txt
+    ├── small_val.txt
+    ├── test_gradient_flow.py
+    ├── tiny_test.txt
+    ├── tiny_val.txt
     ├── train.py
     ├── updates28apr.md
     ├── utils.py
@@ -387,11 +392,11 @@ class LearnableDecoder(nn.Module):
         self.conv1 = nn.Conv2d(num_colors, 32, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
         
-        # Calculate the flattened size after convolutions (no pooling for 5x5)
-        conv_output_size = 64 * grid_size * grid_size
+        # Calculate the flattened size (bypassing CNN)
+        flattened_size = grid_size * grid_size * num_colors
         
         # Dense layers
-        self.fc1 = nn.Linear(conv_output_size, hidden_dim)
+        self.fc1 = nn.Linear(flattened_size, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
         self.fc3 = nn.Linear(hidden_dim, vocab_size)
         
@@ -411,21 +416,20 @@ class LearnableDecoder(nn.Module):
         """
         batch_size = patterns.shape[0]
         
+        # DEBUG: Check decoder input
+        if hasattr(patterns, 'requires_grad') and patterns.requires_grad:
+            print(f"DEBUG Decoder: input shape={patterns.shape}, requires_grad={patterns.requires_grad}")
+            print(f"DEBUG Decoder: input sample (first 5 values)={patterns[0].flatten()[:5].detach()}")
+        
         # Convert to one-hot encoding if not already
         if patterns.dim() == 3:
             patterns = F.one_hot(patterns.long(), num_classes=self.num_colors).float()
             # Shape: [batch_size, grid_size, grid_size, num_colors]
         
-        # Rearrange dimensions for CNN
-        x = patterns.permute(0, 3, 1, 2)
-        # Shape: [batch_size, num_colors, grid_size, grid_size]
-        
-        # Apply CNN layers (no pooling for small 5x5 grids)
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        
-        # Flatten
-        x = x.view(batch_size, -1)
+        # BYPASS CNN - directly flatten the one-hot patterns
+        # CNN doesn't work well with sparse one-hot patterns  
+        x = patterns.view(batch_size, -1)
+        # Shape: [batch_size, grid_size*grid_size*num_colors]
         
         # Apply dense layers
         x = F.relu(self.fc1(x))
@@ -984,44 +988,6 @@ class AdvancedDiffusionModel(nn.Module):
 
 
 ================================================
-FILE: encoder-dot-py-suggestions
-================================================
- encoder.py                                                                                                                                          │ │
-│ │                                                                                                                                                     │ │
-│ │   174                                                                                                                                               │ │
-│ │   175            return pattern_probs                                                                                                               │ │
-│ │   176                                                                                                                                               │ │
-│ │   177 +      def forward_logits(self, token_ids: torch.Tensor) -> torch.Tensor:                                                                     │ │
-│ │   178 +          """                                                                                                                                │ │
-│ │   179 +          Forward pass of the encoder returning logits (before softmax).                                                                     │ │
-│ │   180 +                                                                                                                                             │ │
-│ │   181 +          Args:                                                                                                                              │ │
-│ │   182 +              token_ids: Tensor of token IDs, shape [batch_size]                                                                             │ │
-│ │   183 +                                                                                                                                             │ │
-│ │   184 +          Returns:                                                                                                                           │ │
-│ │   185 +              Tensor of visual pattern logits, shape [batch_size, grid_size, grid_size, num_colors]                                          │ │
-│ │   186 +          """                                                                                                                                │ │
-│ │   187 +          # Get token embeddings                                                                                                             │ │
-│ │   188 +          embeddings = self.token_embedding(token_ids)  # [batch_size, embedding_dim]                                                        │ │
-│ │   189 +                                                                                                                                             │ │
-│ │   190 +          # Process through dense layers                                                                                                     │ │
-│ │   191 +          x = F.relu(self.fc1(embeddings))                                                                                                   │ │
-│ │   192 +          x = F.relu(self.fc2(x))                                                                                                            │ │
-│ │   193 +          x = self.fc3(x)                                                                                                                    │ │
-│ │   194 +                                                                                                                                             │ │
-│ │   195 +          # Reshape to [batch_size, grid_size, grid_size, num_colors]                                                                        │ │
-│ │   196 +          batch_size = token_ids.shape[0]                                                                                                    │ │
-│ │   197 +          logits = x.view(batch_size, self.grid_size, self.grid_size, self.num_colors)                                                       │ │
-│ │   198 +                                                                                                                                             │ │
-│ │   199 +          return logits                                                                                                                      │ │
-│ │   200 +                                                                                                                                             │ │
-│ │   201        def sample_patterns(self, token_ids: torch.Tensor) -> torch.Tensor:                                                                    │ │
-│ │   202            """                                                                                                                                │ │
-│ │   203            Sample discrete patterns from the encoder outputs.
-
-
-
-================================================
 FILE: encoder.py
 ================================================
 """
@@ -1224,6 +1190,21 @@ class LearnableEncoder(nn.Module):
         
         return logits
 
+    def forward_gumbel(self, token_ids: torch.Tensor, temperature: float = 1.0) -> torch.Tensor:
+        """
+        Forward pass with Gumbel-Softmax for differentiable sampling.
+        
+        Args:
+            token_ids: Tensor of token IDs, shape [batch_size]
+            temperature: Gumbel softmax temperature (higher = more uniform)
+            
+        Returns:
+            Tensor of patterns, shape [batch_size, grid_size, grid_size, num_colors]
+        """
+        logits = self.forward_logits(token_ids)
+        # hard=True gives one-hot-like outputs but maintains gradients
+        return F.gumbel_softmax(logits, tau=temperature, hard=True, dim=-1)
+
     def sample_patterns(self, token_ids: torch.Tensor) -> torch.Tensor:
         """
         Sample discrete patterns from the encoder outputs.
@@ -1343,6 +1324,115 @@ dependencies:
   - pip:
       - tensorboard
 
+
+
+================================================
+FILE: generate.py
+================================================
+#!/usr/bin/env python3
+"""
+Text generation script for the Visual Token Diffusion Language Model.
+Loads a trained model and generates text using the diffusion process.
+"""
+
+import argparse
+import torch
+from model import VisualTokenDiffusionLM
+
+
+def generate_text(model_path: str, prompt: str = "", num_tokens: int = 50, temperature: float = 1.0, device: str = "cpu") -> str:
+    """
+    Generate text using a trained Visual Token Diffusion Language Model.
+    
+    Args:
+        model_path: Path to the trained model checkpoint
+        prompt: Optional text prompt to seed generation
+        num_tokens: Number of tokens to generate
+        temperature: Temperature for sampling (higher = more random)
+        device: Device to run on ("cpu" or "cuda")
+        
+    Returns:
+        Generated text string
+    """
+    # Set device
+    device = torch.device(device if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+    
+    # Load the model
+    print(f"Loading model from {model_path}...")
+    try:
+        model = VisualTokenDiffusionLM.load(model_path, device=device)
+        model.diffusion.eval()
+        if model.is_encoder_learnable:
+            model.encoder.eval()
+        if model.is_decoder_learnable:
+            model.decoder.eval()
+        print("Model loaded successfully!")
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        return ""
+    
+    # Generate text
+    print(f"Generating {num_tokens} tokens with temperature {temperature}...")
+    if prompt:
+        print(f"Prompt: '{prompt}'")
+    
+    try:
+        generated = model.generate(prompt=prompt, max_length=num_tokens, temperature=temperature)
+        return generated
+    except Exception as e:
+        print(f"Error during generation: {e}")
+        return ""
+
+
+def main():
+    """Main function to parse arguments and run text generation."""
+    parser = argparse.ArgumentParser(description="Generate text using Visual Token Diffusion Language Model")
+    
+    parser.add_argument("--checkpoint", type=str, required=True, 
+                       help="Path to model checkpoint file (.pt)")
+    parser.add_argument("--prompt", type=str, default="", 
+                       help="Text prompt to seed generation (optional)")
+    parser.add_argument("--length", type=int, default=50, 
+                       help="Number of tokens to generate")
+    parser.add_argument("--temperature", type=float, default=1.0, 
+                       help="Sampling temperature (higher = more random)")
+    parser.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda"],
+                       help="Device to run on")
+    parser.add_argument("--num_samples", type=int, default=1,
+                       help="Number of samples to generate")
+    
+    args = parser.parse_args()
+    
+    # Validate arguments
+    if args.length <= 0:
+        print("Error: Length must be positive")
+        return
+    if args.temperature <= 0:
+        print("Error: Temperature must be positive")
+        return
+    
+    # Generate samples
+    for i in range(args.num_samples):
+        if args.num_samples > 1:
+            print(f"\n--- Sample {i+1}/{args.num_samples} ---")
+        
+        generated_text = generate_text(
+            model_path=args.checkpoint,
+            prompt=args.prompt,
+            num_tokens=args.length,
+            temperature=args.temperature,
+            device=args.device
+        )
+        
+        if generated_text:
+            print(f"Generated: {generated_text}")
+        else:
+            print("Generation failed!")
+
+
+if __name__ == "__main__":
+    main()
 
 
 ================================================
@@ -1550,17 +1640,25 @@ class VisualTokenDiffusionLM:
 
         return " ".join(tokens)
 
-    def train_step(self, text_batch: List[str], optimizer) -> Dict[str, float]:
+    def train_step(self, text_batch: List[str], optimizer, epoch: int = 0, num_epochs: int = 10) -> Dict[str, float]:
         """
         Perform a single training step based on the current training stage.
 
         Args:
             text_batch: Batch of text samples
             optimizer: PyTorch optimizer (assumed to be configured for the current stage)
+            epoch: Current epoch for temperature annealing
+            num_epochs: Total epochs for temperature annealing
 
         Returns:
             Dictionary of loss values for logging
         """
+        def get_gumbel_temperature(epoch: int, num_epochs: int, start_temp: float = 5.0, end_temp: float = 0.5) -> float:
+            """Calculate Gumbel-Softmax temperature with annealing schedule."""
+            if num_epochs <= 1:
+                return start_temp
+            progress = epoch / (num_epochs - 1)
+            return start_temp * (end_temp / start_temp) ** progress
         # Make sure models are in training mode
         if self.is_encoder_learnable: self.encoder.train()
         if self.is_decoder_learnable: self.decoder.train()
@@ -1580,54 +1678,24 @@ class VisualTokenDiffusionLM:
             if token_ids_tensor.numel() == 0: # Skip empty batches
                 return {"total_loss": 0.0}
 
-            # 2. Encode Tokens to Pattern Probabilities
-            # Encoder forward returns probabilities: [batch_size, grid_size, grid_size, num_colors]
-            pattern_probs = self.encoder(token_ids_tensor)
-
-            # --- Simple Approach: Sampling (Issue: Non-differentiable) ---
-            # 3. Sample Discrete Patterns from Probabilities
-            # This uses torch.distributions.Categorical(...).sample(), which is non-differentiable.
-            # Therefore, gradients from the decoder's loss WILL NOT flow back to the encoder through this step.
-            # The encoder is only trained indirectly if its output probabilities happen to lead to
-            # samples that the decoder can use effectively. The decoder gets trained properly.
-            dist = torch.distributions.Categorical(probs=pattern_probs)
-            sampled_patterns = dist.sample() # Shape: [batch_size, grid_size, grid_size]
-
-            # --- DETAILED COMMENT ON TRADEOFFS AND IMPROVEMENT ---
-            # Tradeoffs of this Simple Sampling Approach:
-            #   (+) Simplicity: Easy to implement using existing Categorical sampling.
-            #   (-) Gradient Flow Blocked: The biggest issue. The `sample()` operation breaks the gradient
-            #       path from the decoder loss back to the encoder parameters. This means the encoder
-            #       isn't directly learning to produce patterns that *minimize the decoder's reconstruction error*.
-            #       It might learn something implicitly, but it's not efficient or theoretically sound.
-            #   (-) Variance: Sampling introduces variance into the decoder's input during training.
-            #
-            # TODO: Implement a Differentiable Sampling Strategy
-            #   Replace the `dist.sample()` step with a technique that allows gradient propagation.
-            #   The standard method is the Gumbel-Softmax trick (also known as Concrete distribution):
-            #
-            #   Example using Gumbel-Softmax:
-            #   ```python
-            #   # Inside encoder forward pass, get logits BEFORE softmax:
-            #   # logits = self.fc3(x).view(batch_size, self.grid_size, self.grid_size, self.num_colors)
-            #
-            #   # In train_step, use gumbel_softmax:
-            #   # Note: Requires logits from encoder, not probabilities. Encoder needs slight modification.
-            #   # tau is a temperature parameter, often annealed from a high value to a low value.
-            #   # hard=True makes the output one-hot like, but gradients flow as if it were soft.
-            #   # patterns_for_decoder = F.gumbel_softmax(encoder_logits, tau=1.0, hard=True, dim=-1)
-            #   # # The output shape is [batch_size, grid_size, grid_size, num_colors]
-            #   # # The LearnableDecoder needs to accept this shape directly (which it currently does).
-            #   ```
-            #   Using Gumbel-Softmax ensures the encoder is trained effectively by the reconstruction loss signal
-            #   propagated back from the decoder. This is the recommended approach for future improvement.
-            # --- END OF DETAILED COMMENT ---
-
-
-            # 4. Decode Sampled Patterns to Token Probabilities
-            # Decoder takes [batch, grid, grid] or [batch, grid, grid, num_colors]
-            # The current decoder handles [batch, grid, grid] by applying one-hot itself.
-            predicted_token_probs = self.decoder(sampled_patterns) # Shape: [total_tokens_in_batch, vocab_size]
+            # 2. Encode Tokens to Differentiable Patterns using Gumbel-Softmax
+            # Calculate temperature for current epoch (anneals from 5.0 to 0.5)
+            temperature = get_gumbel_temperature(epoch, num_epochs)
+            
+            # Use Gumbel-Softmax for differentiable sampling - this maintains gradient flow!
+            # Shape: [batch_size, grid_size, grid_size, num_colors]
+            pattern_gumbel = self.encoder.forward_gumbel(token_ids_tensor, temperature=temperature)
+            
+            # Debug: Check if gradients are flowing and pattern diversity
+            if hasattr(pattern_gumbel, 'requires_grad') and pattern_gumbel.requires_grad:
+                discrete_patterns = pattern_gumbel.argmax(dim=-1).reshape(-1, 25)
+                unique_patterns = len(torch.unique(discrete_patterns, dim=0))
+                print(f"DEBUG: temp: {temperature:.3f}, unique patterns: {unique_patterns}/{len(pattern_gumbel)}")
+            
+            # 3. Decode Gumbel Patterns Directly to Token Probabilities
+            # Pass the differentiable Gumbel patterns directly to maintain gradient flow!
+            # Decoder can handle [batch, grid, grid, num_colors] format
+            predicted_token_probs = self.decoder(pattern_gumbel) # Shape: [total_tokens_in_batch, vocab_size]
 
             # 5. Calculate Reconstruction Loss
             reconstruction_loss = F.cross_entropy(predicted_token_probs, token_ids_tensor)
@@ -1973,6 +2041,155 @@ nature displays incredible beauty
 
 
 ================================================
+FILE: small_train.txt
+================================================
+the cat sits on the mat
+the dog runs in the park
+birds fly in the sky
+fish swim in the water
+the sun shines bright today
+rain falls from dark clouds
+trees grow tall and strong
+flowers bloom in the spring
+cats and dogs are pets
+birds sing in the morning
+water flows in the river
+sun gives us light
+rain helps plants grow
+trees provide fresh air
+
+
+================================================
+FILE: small_val.txt
+================================================
+the cat and dog play
+birds fly high today
+water is very important
+
+
+================================================
+FILE: test_gradient_flow.py
+================================================
+#!/usr/bin/env python3
+"""
+Test script to verify gradient flow is working with a minimal setup.
+"""
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from encoder import LearnableEncoder
+from decoder import LearnableDecoder
+from utils import create_simple_tokenizer
+
+def test_gradient_flow():
+    """Test that gradients flow from decoder loss back to encoder."""
+    
+    # Create tiny vocabulary for testing
+    tiny_vocab = ["hello", "world", "test"]
+    token_to_id = create_simple_tokenizer(tiny_vocab)
+    vocab_size = len(token_to_id)
+    id_to_token = {v: k for k, v in token_to_id.items()}
+    
+    print(f"Testing with vocabulary size: {vocab_size}")
+    print(f"Token mapping: {token_to_id}")
+    
+    # Create encoder and decoder
+    encoder = LearnableEncoder(token_to_id, embedding_dim=64, hidden_dim=128)
+    decoder = LearnableDecoder(id_to_token, vocab_size, hidden_dim=128)
+    
+    # Create test data
+    test_tokens = [token_to_id["hello"], token_to_id["world"], token_to_id["test"]]
+    token_ids = torch.tensor(test_tokens, dtype=torch.long)
+    
+    print(f"Test token IDs: {token_ids}")
+    
+    # Test forward pass with Gumbel-Softmax
+    print("\n--- Testing Gumbel-Softmax Forward Pass ---")
+    
+    # Get initial encoder embedding weights
+    initial_weights = encoder.token_embedding.weight.clone()
+    
+    # Forward pass
+    pattern_gumbel = encoder.forward_gumbel(token_ids, temperature=1.0)
+    print(f"Gumbel patterns shape: {pattern_gumbel.shape}")
+    print(f"Gumbel patterns require grad: {pattern_gumbel.requires_grad}")
+    
+    # Decode
+    predicted_probs = decoder(pattern_gumbel)
+    print(f"Predicted probs shape: {predicted_probs.shape}")
+    
+    # Calculate loss
+    loss = F.cross_entropy(predicted_probs, token_ids)
+    print(f"Loss: {loss.item():.4f}")
+    
+    # Backward pass
+    loss.backward()
+    
+    # Check if gradients are non-zero
+    encoder_grad_norm = encoder.token_embedding.weight.grad.norm().item()
+    decoder_grad_norm = decoder.fc1.weight.grad.norm().item()
+    
+    print(f"Encoder embedding gradient norm: {encoder_grad_norm:.6f}")
+    print(f"Decoder fc1 gradient norm: {decoder_grad_norm:.6f}")
+    
+    if encoder_grad_norm > 1e-6:
+        print("✅ SUCCESS: Gradients are flowing to encoder!")
+    else:
+        print("❌ FAILURE: No gradients flowing to encoder!")
+    
+    # Test training step
+    print("\n--- Testing Training Step ---")
+    optimizer = torch.optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=0.01)
+    
+    for step in range(5):
+        optimizer.zero_grad()
+        
+        # Forward pass
+        pattern_gumbel = encoder.forward_gumbel(token_ids, temperature=1.0)
+        predicted_probs = decoder(pattern_gumbel)
+        loss = F.cross_entropy(predicted_probs, token_ids)
+        
+        # Backward pass
+        loss.backward()
+        optimizer.step()
+        
+        # Calculate accuracy
+        predicted_ids = torch.argmax(predicted_probs, dim=-1)
+        accuracy = (predicted_ids == token_ids).float().mean().item()
+        
+        print(f"Step {step+1}: Loss={loss.item():.4f}, Accuracy={accuracy:.4f}")
+        
+        if accuracy > 0.9:
+            print("✅ SUCCESS: High accuracy achieved!")
+            break
+    
+    return accuracy > 0.5
+
+if __name__ == "__main__":
+    success = test_gradient_flow()
+    if success:
+        print("\n🎉 Gradient flow test PASSED!")
+    else:
+        print("\n😞 Gradient flow test FAILED!")
+
+
+================================================
+FILE: tiny_test.txt
+================================================
+cat dog bird cat dog bird cat dog bird
+cat dog bird cat dog bird cat dog bird
+cat dog bird cat dog bird cat dog bird
+
+
+================================================
+FILE: tiny_val.txt
+================================================
+cat dog bird
+dog bird cat
+
+
+================================================
 FILE: train.py
 ================================================
 # visual_token_diffuser/train.py
@@ -2050,6 +2267,25 @@ def create_vocabulary(samples: List[str], max_vocab_size: int = 1000) -> List[st
     vocab = [word for word, count in sorted_words[:max_vocab_size - 3]] # Reserve space for <pad>, <unk>, <eos>
 
     return vocab
+
+
+def get_temperature(epoch: int, num_epochs: int, start_temp: float = 5.0, end_temp: float = 0.5) -> float:
+    """
+    Calculate Gumbel-Softmax temperature with annealing schedule.
+    
+    Args:
+        epoch: Current epoch (0-indexed)
+        num_epochs: Total number of epochs
+        start_temp: Starting temperature (higher = more uniform)
+        end_temp: Ending temperature (lower = more focused)
+        
+    Returns:
+        Current temperature value
+    """
+    if num_epochs <= 1:
+        return start_temp
+    progress = epoch / (num_epochs - 1)
+    return start_temp * (end_temp / start_temp) ** progress
 
 
 def create_batches(samples: List[str], batch_size: int) -> List[List[str]]:
@@ -2195,7 +2431,7 @@ def train(model: VisualTokenDiffusionLM,
         pbar = tqdm(batches, desc=f"Epoch {epoch+1} Training")
         for i, batch in enumerate(pbar):
             # Perform training step (model internally uses self.training_stage)
-            losses = model.train_step(batch, optimizer)
+            losses = model.train_step(batch, optimizer, epoch=epoch, num_epochs=num_epochs)
             epoch_losses.append(losses)
 
             # Log progress
@@ -2227,13 +2463,10 @@ def train(model: VisualTokenDiffusionLM,
                     token_ids_tensor = model._get_token_ids_from_text_batch(val_batch)
                     if token_ids_tensor.numel() == 0: continue
 
-                    pattern_probs = model.encoder(token_ids_tensor)
-                    # Use simple sampling for validation consistency with train_step (or argmax if preferred)
-                    sampled_patterns = torch.distributions.Categorical(probs=pattern_probs).sample()
-                    # Alternative: use argmax for deterministic validation
-                    # sampled_patterns = torch.argmax(pattern_probs, dim=-1)
-
-                    predicted_token_probs = model.decoder(sampled_patterns)
+                    # Use Gumbel-Softmax for validation consistency with training
+                    # Fixed temperature for deterministic validation
+                    pattern_gumbel = model.encoder.forward_gumbel(token_ids_tensor, temperature=1.0)
+                    predicted_token_probs = model.decoder(pattern_gumbel)
                     val_loss = F.cross_entropy(predicted_token_probs, token_ids_tensor, reduction='sum')
                     total_val_loss += val_loss.item()
                     num_val_tokens += token_ids_tensor.numel()
@@ -2241,6 +2474,33 @@ def train(model: VisualTokenDiffusionLM,
                     # Calculate reconstruction accuracy
                     predicted_token_ids = torch.argmax(predicted_token_probs, dim=-1)
                     correct_reconstructions += (predicted_token_ids == token_ids_tensor).sum().item()
+                    
+                    # DEBUG: First epoch detailed analysis
+                    if epoch == 0 and len(val_batches) == 1:  # First validation batch of first epoch
+                        print(f"\n=== DEBUGGING RECONSTRUCTION ACCURACY ===")
+                        print(f"Sample predictions vs targets (first 15):")
+                        print(f"Predicted tokens: {predicted_token_ids[:15].tolist()}")
+                        print(f"Target tokens:    {token_ids_tensor[:15].tolist()}")
+                        
+                        # Check if decoder is outputting the same token
+                        unique_predictions = torch.unique(predicted_token_ids)
+                        print(f"Unique predicted token IDs: {unique_predictions.tolist()}")
+                        print(f"Total unique predictions: {len(unique_predictions)} out of {len(predicted_token_ids)} tokens")
+                        
+                        # Which tokens are being predicted correctly?
+                        correct_mask = (predicted_token_ids == token_ids_tensor)
+                        correct_indices = torch.where(correct_mask)[0]
+                        if len(correct_indices) > 0:
+                            print(f"Correctly predicted token IDs: {token_ids_tensor[correct_indices].tolist()}")
+                            print(f"Number of correct predictions: {len(correct_indices)}")
+                        else:
+                            print("No correct predictions!")
+                        
+                        # Check target token distribution
+                        unique_targets = torch.unique(token_ids_tensor)
+                        print(f"Unique target token IDs: {unique_targets.tolist()}")
+                        print(f"Target distribution: {len(unique_targets)} unique out of {len(token_ids_tensor)} tokens")
+                        print("="*50)
 
                 elif training_stage == 'diffusion':
                     # Get target patterns
@@ -2837,28 +3097,128 @@ FILE: checkpoints/reconstruction/loss_history.json
 ================================================
 {
   "reconstruction_loss": [
-    5.257491111755371,
-    5.2575249671936035,
-    5.257454872131348,
-    5.257460117340088,
-    5.257436275482178,
-    5.257338523864746,
-    5.257225513458252,
-    5.257342338562012,
-    5.25675630569458,
-    5.256636142730713,
-    5.254543781280518,
-    5.252991676330566,
-    5.2340497970581055,
-    5.252025127410889,
-    5.2269110679626465,
-    5.20313835144043,
-    5.22617244720459,
-    5.20120096206665,
-    5.22065544128418,
-    5.209587574005127
+    5.257568359375,
+    5.257577419281006,
+    5.257543563842773,
+    5.2575788497924805,
+    5.257474422454834,
+    5.25761604309082,
+    5.2576799392700195,
+    5.25736665725708,
+    5.257251739501953,
+    5.257288932800293,
+    5.257404804229736,
+    5.25710916519165,
+    5.257350444793701,
+    5.257201671600342,
+    5.25725793838501,
+    5.256974697113037,
+    5.257381439208984,
+    5.256779193878174,
+    5.257086277008057,
+    5.2569193840026855,
+    5.257471561431885,
+    5.256200313568115,
+    5.257106304168701,
+    5.2556986808776855,
+    5.255853652954102,
+    5.257071018218994,
+    5.252079963684082,
+    5.257016658782959,
+    5.257213115692139,
+    5.251445293426514,
+    5.253963947296143,
+    5.235410690307617,
+    5.240475654602051,
+    5.237681865692139,
+    5.213136196136475,
+    5.243349075317383,
+    5.223549842834473,
+    5.214237213134766,
+    5.16607141494751,
+    5.213723659515381,
+    5.240924835205078,
+    5.2662353515625,
+    5.210793972015381,
+    5.213759899139404,
+    5.213743686676025,
+    5.189473628997803,
+    5.218769550323486,
+    5.240760326385498,
+    5.266384124755859,
+    5.240085124969482,
+    5.212346076965332,
+    5.2663984298706055,
+    5.218784332275391,
+    5.168842792510986,
+    5.1853227615356445,
+    5.266403675079346,
+    5.150125026702881,
+    5.266402244567871,
+    5.240087985992432,
+    5.266403675079346,
+    5.161141872406006,
+    5.218784809112549,
+    5.266404628753662,
+    5.266404151916504,
+    5.193233489990234,
+    5.175495147705078,
+    5.187455654144287,
+    5.238626480102539,
+    5.24008846282959,
+    5.266404151916504
   ],
   "diffusion_loss": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
     0.0,
     0.0,
     0.0,
@@ -2881,26 +3241,76 @@ FILE: checkpoints/reconstruction/loss_history.json
     0.0
   ],
   "total_loss": [
-    5.257491111755371,
-    5.2575249671936035,
-    5.257454872131348,
-    5.257460117340088,
-    5.257436275482178,
-    5.257338523864746,
-    5.257225513458252,
-    5.257342338562012,
-    5.25675630569458,
-    5.256636142730713,
-    5.254543781280518,
-    5.252991676330566,
-    5.2340497970581055,
-    5.252025127410889,
-    5.2269110679626465,
-    5.20313835144043,
-    5.22617244720459,
-    5.20120096206665,
-    5.22065544128418,
-    5.209587574005127
+    5.257568359375,
+    5.257577419281006,
+    5.257543563842773,
+    5.2575788497924805,
+    5.257474422454834,
+    5.25761604309082,
+    5.2576799392700195,
+    5.25736665725708,
+    5.257251739501953,
+    5.257288932800293,
+    5.257404804229736,
+    5.25710916519165,
+    5.257350444793701,
+    5.257201671600342,
+    5.25725793838501,
+    5.256974697113037,
+    5.257381439208984,
+    5.256779193878174,
+    5.257086277008057,
+    5.2569193840026855,
+    5.257471561431885,
+    5.256200313568115,
+    5.257106304168701,
+    5.2556986808776855,
+    5.255853652954102,
+    5.257071018218994,
+    5.252079963684082,
+    5.257016658782959,
+    5.257213115692139,
+    5.251445293426514,
+    5.253963947296143,
+    5.235410690307617,
+    5.240475654602051,
+    5.237681865692139,
+    5.213136196136475,
+    5.243349075317383,
+    5.223549842834473,
+    5.214237213134766,
+    5.16607141494751,
+    5.213723659515381,
+    5.240924835205078,
+    5.2662353515625,
+    5.210793972015381,
+    5.213759899139404,
+    5.213743686676025,
+    5.189473628997803,
+    5.218769550323486,
+    5.240760326385498,
+    5.266384124755859,
+    5.240085124969482,
+    5.212346076965332,
+    5.2663984298706055,
+    5.218784332275391,
+    5.168842792510986,
+    5.1853227615356445,
+    5.266403675079346,
+    5.150125026702881,
+    5.266402244567871,
+    5.240087985992432,
+    5.266403675079346,
+    5.161141872406006,
+    5.218784809112549,
+    5.266404628753662,
+    5.266404151916504,
+    5.193233489990234,
+    5.175495147705078,
+    5.187455654144287,
+    5.238626480102539,
+    5.24008846282959,
+    5.266404151916504
   ]
 }
 
