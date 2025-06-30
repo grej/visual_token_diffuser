@@ -33,12 +33,12 @@ class SimpleDiffusionModel(nn.Module):
         self.timesteps = timesteps
         
         # Define the noise schedule (linear beta schedule)
-        self.beta = torch.linspace(0.1, 0.9, timesteps)
-        self.alpha = 1. - self.beta
-        self.alpha_cumprod = torch.cumprod(self.alpha, dim=0)
+        self.register_buffer('beta', torch.linspace(0.1, 0.9, timesteps))
+        self.register_buffer('alpha', 1. - self.beta)
+        self.register_buffer('alpha_cumprod', torch.cumprod(self.alpha, dim=0))
         
         # Define the transition matrix
-        self.transition_matrix = self._create_transition_matrix()
+        self.register_buffer('transition_matrix', self._create_transition_matrix())
         
         # Define the denoising network
         self.denoising_network = self._create_denoising_network(hidden_dim)
@@ -106,7 +106,7 @@ class SimpleDiffusionModel(nn.Module):
         device = patterns.device
         
         # Create one-hot encoded patterns
-        patterns_one_hot = F.one_hot(patterns.long(), num_classes=self.num_colors)
+        patterns_one_hot = F.one_hot(patterns.long(), num_classes=self.num_colors).float()
         # Shape: [batch_size, grid_size, grid_size, num_colors]
         
         # Get transition matrices for each timestep in the batch
@@ -179,29 +179,52 @@ class SimpleDiffusionModel(nn.Module):
         
         return predicted_patterns
     
-    def forward(self, patterns: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, patterns: torch.Tensor, t: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Forward pass of the diffusion model.
         
         Args:
-            patterns: Original patterns, shape [batch_size, grid_size, grid_size]
+            patterns: Noisy patterns, shape [batch_size, grid_size, grid_size]
+            t: Timesteps for each sample in the batch, shape [batch_size]
         
         Returns:
-            Tuple of (noisy_patterns, predicted_patterns, t)
+            Predicted pattern probabilities, shape [batch_size, grid_size, grid_size, num_colors]
         """
         batch_size = patterns.shape[0]
         device = patterns.device
         
-        # Sample random timesteps for each sample in the batch
-        t = torch.randint(0, self.timesteps, (batch_size,), device=device)
+        # If no timesteps provided, sample random ones
+        if t is None:
+            t = torch.randint(0, self.timesteps, (batch_size,), device=device)
         
-        # Add noise to the patterns
-        noisy_patterns = self.add_noise(patterns, t)
+        # One-hot encode noisy patterns
+        noisy_one_hot = F.one_hot(patterns.long(), num_classes=self.num_colors).float()
+        # Shape: [batch_size, grid_size, grid_size, num_colors]
         
-        # Predict original patterns from noisy ones
-        predicted_patterns = self.denoise(noisy_patterns, t)
+        # Flatten the one-hot patterns
+        noisy_flat = noisy_one_hot.view(batch_size, -1)
+        # Shape: [batch_size, grid_size*grid_size*num_colors]
         
-        return noisy_patterns, predicted_patterns, t
+        # Create timestep embeddings (one-hot)
+        t_emb = F.one_hot(t.long(), num_classes=self.timesteps).float()
+        # Shape: [batch_size, timesteps]
+        
+        # Concatenate noisy patterns and timestep embeddings
+        network_input = torch.cat([noisy_flat, t_emb], dim=1)
+        
+        # Pass through the denoising network
+        network_output = self.denoising_network(network_input)
+        # Shape: [batch_size, grid_size*grid_size*num_colors]
+        
+        # Reshape to [batch_size, grid_size, grid_size, num_colors]
+        predicted_probs = network_output.view(
+            batch_size, self.grid_size, self.grid_size, self.num_colors
+        )
+        
+        # Apply softmax to get probabilities
+        predicted_probs = F.softmax(predicted_probs, dim=-1)
+        
+        return predicted_probs
     
     def sample(self, batch_size: int, device: torch.device) -> torch.Tensor:
         """
@@ -256,9 +279,9 @@ class AdvancedDiffusionModel(nn.Module):
         self.hidden_dim = hidden_dim
         
         # Define the noise schedule (cosine schedule)
-        self.beta = self._cosine_beta_schedule(timesteps)
-        self.alpha = 1. - self.beta
-        self.alpha_cumprod = torch.cumprod(self.alpha, dim=0)
+        self.register_buffer('beta', self._cosine_beta_schedule(timesteps))
+        self.register_buffer('alpha', 1. - self.beta)
+        self.register_buffer('alpha_cumprod', torch.cumprod(self.alpha, dim=0))
         
         # Define the transition matrix
         self.register_buffer('transition_matrix', self._create_transition_matrix())
@@ -344,7 +367,7 @@ class AdvancedDiffusionModel(nn.Module):
         device = patterns.device
         
         # Create one-hot encoded patterns
-        patterns_one_hot = F.one_hot(patterns.long(), num_classes=self.num_colors)
+        patterns_one_hot = F.one_hot(patterns.long(), num_classes=self.num_colors).float()
         # Shape: [batch_size, grid_size, grid_size, num_colors]
         
         # Get transition matrices for each timestep in the batch
